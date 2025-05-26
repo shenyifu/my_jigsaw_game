@@ -9,21 +9,8 @@ fn main() {
 
 fn setup(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
+    asset_server: Res<AssetServer>,
 ) {
     commands.spawn(Camera2d);
-    let shape = meshes.add(Circle::new(50.0));
-
-    let color = Color::hsl(360. as f32, 0.95, 0.7);
-
-    commands.spawn((
-        Mesh2d(shape),
-        MeshMaterial2d(materials.add(color)),
-        Transform::from_xyz(
-            0.0,
-            0.0,
-            0.0,
-        ),
-    ));
+    commands.spawn(Sprite::from_image(asset_server.load("resources/hat.png")));
 }

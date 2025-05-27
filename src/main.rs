@@ -28,6 +28,11 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         Transform::from_xyz(0., 0., 0.),
         MoveStatus::Init,
     ));
+    commands.spawn((
+        Sprite::from_image(asset_server.load("resources/hat.png")),
+        Transform::from_xyz(0., 0., 0.),
+        MoveStatus::Init,
+    ));
 }
 
 fn move_sprite(

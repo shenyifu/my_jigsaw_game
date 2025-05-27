@@ -8,6 +8,10 @@ const SPIRIT_WIDTH: f32 = 100.;
 
 const SPIRIT_RADIUS: f32 = (SPIRIT_HEIGHT * SPIRIT_HEIGHT + SPIRIT_WIDTH * SPIRIT_WIDTH) / 4.;
 
+const PAINT_BOARD_HEIGHT: f32 = 100.;
+const PAINT_BOARD_WIDTH: f32 = 200.;
+const PAINT_BOARD_COLOR: Color = Color::srgb(255., 255., 255.);
+
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
@@ -26,7 +30,12 @@ enum MoveStatus {
     MoveSprite,
 }
 
-fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn setup(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+) {
     commands.spawn(Camera2d);
 
     let mut mortar = Sprite::from_image(asset_server.load("resources/the-mortar.png"));
@@ -41,6 +50,17 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         Transform::from_xyz(0., SPIRIT_HEIGHT, 0.),
         MoveStatus::Init,
     ));
+
+    commands.spawn((
+        Mesh2d(meshes.add(Rectangle::new(PAINT_BOARD_WIDTH, PAINT_BOARD_HEIGHT))),
+        MeshMaterial2d(materials.add(PAINT_BOARD_COLOR)),
+        Transform::from_xyz(
+            0.,
+            0.0,
+            0.0,
+        ),
+    ));
+
 }
 
 fn move_sprite(

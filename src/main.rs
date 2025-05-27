@@ -23,14 +23,21 @@ enum MoveStatus {
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn(Camera2d);
+    
+    let mut mortar = Sprite::from_image(asset_server.load("resources/the-mortar.png"));
+    mortar.custom_size = Some(Vec2::new(100.,100.));
+    
     commands.spawn((
-        Sprite::from_image(asset_server.load("resources/the-mortar.png")),
+        mortar,
         Transform::from_xyz(0., 0., 0.),
         MoveStatus::Init,
     ));
+
+    let mut hat = Sprite::from_image(asset_server.load("resources/hat.png"));
+    hat.custom_size = Some(Vec2::new(100.,100.));
     commands.spawn((
-        Sprite::from_image(asset_server.load("resources/hat.png")),
-        Transform::from_xyz(0., 0., 0.),
+        hat,
+        Transform::from_xyz(0., 100., 0.),
         MoveStatus::Init,
     ));
 }

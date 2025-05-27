@@ -3,6 +3,11 @@ use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use std::cmp::PartialEq;
 
+const SPIRIT_HEIGHT: f32 = 100.;
+const SPIRIT_WIDTH: f32 = 100.;
+
+const SPIRIT_RADIUS: f32 = (SPIRIT_HEIGHT * SPIRIT_HEIGHT + SPIRIT_WIDTH * SPIRIT_WIDTH) / 4.;
+
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
@@ -23,21 +28,17 @@ enum MoveStatus {
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn(Camera2d);
-    
+
     let mut mortar = Sprite::from_image(asset_server.load("resources/the-mortar.png"));
-    mortar.custom_size = Some(Vec2::new(100.,100.));
-    
-    commands.spawn((
-        mortar,
-        Transform::from_xyz(0., 0., 0.),
-        MoveStatus::Init,
-    ));
+    mortar.custom_size = Some(Vec2::new(SPIRIT_WIDTH, SPIRIT_HEIGHT));
+
+    commands.spawn((mortar, Transform::from_xyz(0., 0., 0.), MoveStatus::Init));
 
     let mut hat = Sprite::from_image(asset_server.load("resources/hat.png"));
-    hat.custom_size = Some(Vec2::new(100.,100.));
+    hat.custom_size = Some(Vec2::new(SPIRIT_WIDTH, SPIRIT_HEIGHT));
     commands.spawn((
         hat,
-        Transform::from_xyz(0., 100., 0.),
+        Transform::from_xyz(0., SPIRIT_HEIGHT, 0.),
         MoveStatus::Init,
     ));
 }
@@ -64,11 +65,41 @@ fn move_sprite(
     }
 }
 
-fn click_chose(mut sprite_position: Query<&mut MoveStatus>) {
-    for mut move_status in sprite_position.iter_mut() {
-        match *move_status {
-            MoveStatus::Init => *move_status = MoveStatus::MoveSprite,
-            MoveStatus::MoveSprite => *move_status = MoveStatus::Init,
+fn click_chose(
+    mut sprite_position: Query<(&mut MoveStatus, &mut Transform)>,
+    q_window: Query<&Window, With<PrimaryWindow>>,
+    q_camera: Query<(&Camera, &GlobalTransform)>,
+) {
+    let (camera, camera_transform) = q_camera.single().unwrap();
+    let window = q_window.single().unwrap();
+
+    if let Some(world_position) = window
+        .cursor_position()
+        .and_then(|cursor| Some(camera.viewport_to_world(camera_transform, cursor).unwrap()))
+        .map(|ray| ray.origin.truncate())
+    {
+        let mut some_in_move = false;
+        for (move_status, _) in sprite_position.iter_mut() {
+            match *move_status {
+                MoveStatus::Init => (),
+                MoveStatus::MoveSprite => some_in_move = true,
+            }
+        }
+
+        for (mut move_status, transform) in sprite_position.iter_mut() {
+            if some_in_move {
+                *move_status = MoveStatus::Init;
+            } else if cursor_on_sprite(&world_position, &transform) {
+                *move_status = MoveStatus::MoveSprite;
+                break;
+            }
         }
     }
+}
+
+fn cursor_on_sprite(world_position: &Vec2, transform: &Transform) -> bool {
+    let delta_x = world_position.x - transform.translation.x;
+    let delta_y = world_position.y - transform.translation.y;
+
+    delta_x * delta_x + delta_y * delta_y < SPIRIT_RADIUS
 }

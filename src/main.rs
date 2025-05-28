@@ -32,6 +32,9 @@ enum MoveStatus {
     MoveSprite,
 }
 
+#[derive(Component)]
+struct CorrectPosition(Transform);
+
 fn setup(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -43,12 +46,33 @@ fn setup(
     let mut mortar = Sprite::from_image(asset_server.load("resources/flower.png"));
     mortar.custom_size = Some(Vec2::new(SPIRIT_WIDTH, SPIRIT_HEIGHT));
 
-    commands.spawn((mortar, Transform::from_xyz(0., 0., 0.), MoveStatus::Init));
+    commands.spawn((
+        mortar,
+        Transform::from_xyz(0., 0., 0.),
+        MoveStatus::Init,
+        CorrectPosition(Transform::from_xyz(0., 0., 0.)),
+    ));
 
     commands.spawn((
         Mesh2d(meshes.add(Rectangle::new(PAINT_BOARD_WIDTH, PAINT_BOARD_HEIGHT))),
         MeshMaterial2d(materials.add(PAINT_BOARD_COLOR)),
         Transform::from_xyz(0., 0.0, 0.0),
+    ));
+
+    commands.spawn((
+        Text::new("come on!"),
+        TextFont {
+            font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+            font_size: 33.0,
+            ..default()
+        },
+        TextColor(Color::srgb(255., 0., 0.)),
+        Node {
+            position_type: PositionType::Absolute,
+            bottom: Val::Px(5.0),
+            right: Val::Px(5.0),
+            ..default()
+        },
     ));
 }
 
@@ -75,7 +99,8 @@ fn move_sprite(
 }
 
 fn click_chose(
-    mut sprite_position: Query<(&mut MoveStatus, &mut Transform)>,
+    mut sprite_position: Query<(&mut MoveStatus, &mut Transform, &CorrectPosition)>,
+    mut result: Query<(&mut Text, &mut TextColor)>,
     q_window: Query<&Window, With<PrimaryWindow>>,
     q_camera: Query<(&Camera, &GlobalTransform)>,
 ) {
@@ -88,22 +113,44 @@ fn click_chose(
         .map(|ray| ray.origin.truncate())
     {
         let mut some_in_move = false;
-        for (move_status, _) in sprite_position.iter_mut() {
+        for (move_status, _, _) in sprite_position.iter_mut() {
             match *move_status {
                 MoveStatus::Init => (),
                 MoveStatus::MoveSprite => some_in_move = true,
             }
         }
+        let mut check_all_correct = false;
 
-        for (mut move_status, transform) in sprite_position.iter_mut() {
+        for (mut move_status, transform, _) in sprite_position.iter_mut() {
             if some_in_move {
                 *move_status = MoveStatus::Init;
+                // todo check if on paint board and near one correct position
+                // if so please it to one correct position
+                // check if all already correct
+                // only check one now
+                check_all_correct = true;
             } else if cursor_on_sprite(&world_position, &transform) {
                 *move_status = MoveStatus::MoveSprite;
                 break;
             }
         }
+
+        if check_all_correct {
+            if all_sprite_correct(&sprite_position) {
+                // change result to correct
+                for (mut text, mut color) in result.iter_mut() {
+                    color.0 = Color::srgb(0., 255., 0.);
+                    *text = Text::new("Well Done!");
+                }
+            }
+        }
     }
+}
+
+fn all_sprite_correct(
+    sprite_position: &Query<(&mut MoveStatus, &mut Transform, &CorrectPosition)>,
+) -> bool {
+    true
 }
 
 fn cursor_on_sprite(world_position: &Vec2, transform: &Transform) -> bool {

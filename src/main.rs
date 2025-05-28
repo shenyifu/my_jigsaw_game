@@ -3,13 +3,15 @@ use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use std::cmp::PartialEq;
 
-const SPIRIT_HEIGHT: f32 = 100.;
-const SPIRIT_WIDTH: f32 = 100.;
+const SPIRIT_HEIGHT: f32 = 640.;
+const SPIRIT_WIDTH: f32 = 960.;
 
 const SPIRIT_RADIUS: f32 = (SPIRIT_HEIGHT * SPIRIT_HEIGHT + SPIRIT_WIDTH * SPIRIT_WIDTH) / 4.;
 
-const PAINT_BOARD_HEIGHT: f32 = 100.;
-const PAINT_BOARD_WIDTH: f32 = 200.;
+// 3 * 2
+const PAINT_BOARD_HEIGHT: f32 = 640.;
+const PAINT_BOARD_WIDTH: f32 = 960.;
+
 const PAINT_BOARD_COLOR: Color = Color::srgb(255., 255., 255.);
 
 fn main() {
@@ -38,29 +40,16 @@ fn setup(
 ) {
     commands.spawn(Camera2d);
 
-    let mut mortar = Sprite::from_image(asset_server.load("resources/the-mortar.png"));
+    let mut mortar = Sprite::from_image(asset_server.load("resources/flower.png"));
     mortar.custom_size = Some(Vec2::new(SPIRIT_WIDTH, SPIRIT_HEIGHT));
 
     commands.spawn((mortar, Transform::from_xyz(0., 0., 0.), MoveStatus::Init));
 
-    let mut hat = Sprite::from_image(asset_server.load("resources/hat.png"));
-    hat.custom_size = Some(Vec2::new(SPIRIT_WIDTH, SPIRIT_HEIGHT));
-    commands.spawn((
-        hat,
-        Transform::from_xyz(0., SPIRIT_HEIGHT, 0.),
-        MoveStatus::Init,
-    ));
-
     commands.spawn((
         Mesh2d(meshes.add(Rectangle::new(PAINT_BOARD_WIDTH, PAINT_BOARD_HEIGHT))),
         MeshMaterial2d(materials.add(PAINT_BOARD_COLOR)),
-        Transform::from_xyz(
-            0.,
-            0.0,
-            0.0,
-        ),
+        Transform::from_xyz(0., 0.0, 0.0),
     ));
-
 }
 
 fn move_sprite(

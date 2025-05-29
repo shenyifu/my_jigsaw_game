@@ -2,12 +2,12 @@ use bevy::asset::RenderAssetUsages;
 use bevy::input::common_conditions::*;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
-use image::{DynamicImage, GenericImageView, ImageBuffer, Rgba};
+use image::{DynamicImage, GenericImageView};
 use std::cmp::PartialEq;
 use std::path::Path;
 
-const SPIRIT_HEIGHT_COUNT: u32 = 2;
-const SPIRIT_WIDTH_COUNT: u32 = 3;
+const SPIRIT_HEIGHT_COUNT: u8 = 2;
+const SPIRIT_WIDTH_COUNT: u8 = 3;
 const SPIRIT_SIDE_LENGTH: f32 = PAINT_BOARD_HEIGHT / (SPIRIT_HEIGHT_COUNT as f32);
 
 const SPIRIT_RADIUS: f32 =
@@ -51,22 +51,23 @@ fn setup(
 
     let split_images = split_image(
         "assets/resources/flower.png",
-        SPIRIT_WIDTH_COUNT,
-        SPIRIT_HEIGHT_COUNT,
+        SPIRIT_WIDTH_COUNT as u32,
+        SPIRIT_HEIGHT_COUNT as u32,
     )
     .unwrap();
-    
-    for image in split_images {
+
+    for (index, image) in split_images.into_iter().enumerate() {
         let img = Image::from_dynamic(image, true, RenderAssetUsages::RENDER_WORLD);
         let img_handle = images.add(img);
 
         let mut sprite = Sprite::from_image(img_handle);
         sprite.custom_size = Some(Vec2::new(SPIRIT_SIDE_LENGTH, SPIRIT_SIDE_LENGTH));
+        let correct_position = get_correct_position(index);
         commands.spawn((
             sprite,
-            Transform::from_xyz(0., 0., 0.),
+            correct_position.clone(),
             MoveStatus::Init,
-            CorrectPosition(Transform::from_xyz(0., 0., 0.)),
+            CorrectPosition(correct_position),
         ));
     }
     commands.spawn((
@@ -199,4 +200,17 @@ pub fn split_image<P: AsRef<Path>>(
     }
 
     Ok(sub_images)
+}
+
+fn get_correct_position(index: usize) -> Transform {
+    let width_index = index % SPIRIT_WIDTH_COUNT as usize;
+    let height_index = SPIRIT_HEIGHT_COUNT as usize - 1 - (index / SPIRIT_WIDTH_COUNT as usize);
+
+    Transform::from_xyz(
+        SPIRIT_SIDE_LENGTH as f32 / 2. + width_index as f32 * SPIRIT_SIDE_LENGTH
+            - PAINT_BOARD_WIDTH / 2.,
+        SPIRIT_SIDE_LENGTH as f32 / 2. + height_index as f32 * SPIRIT_SIDE_LENGTH
+            - PAINT_BOARD_HEIGHT / 2.,
+        0.0,
+    )
 }

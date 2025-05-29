@@ -1,12 +1,17 @@
+use bevy::asset::RenderAssetUsages;
 use bevy::input::common_conditions::*;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
+use image::{DynamicImage, GenericImageView, ImageBuffer, Rgba};
 use std::cmp::PartialEq;
+use std::path::Path;
 
-const SPIRIT_HEIGHT: f32 = 640.;
-const SPIRIT_WIDTH: f32 = 960.;
+const SPIRIT_HEIGHT_COUNT: u32 = 2;
+const SPIRIT_WIDTH_COUNT: u32 = 3;
+const SPIRIT_SIDE_LENGTH: f32 = PAINT_BOARD_HEIGHT / (SPIRIT_HEIGHT_COUNT as f32);
 
-const SPIRIT_RADIUS: f32 = (SPIRIT_HEIGHT * SPIRIT_HEIGHT + SPIRIT_WIDTH * SPIRIT_WIDTH) / 4.;
+const SPIRIT_RADIUS: f32 =
+    (SPIRIT_SIDE_LENGTH * SPIRIT_SIDE_LENGTH + SPIRIT_SIDE_LENGTH * SPIRIT_SIDE_LENGTH) / 4.;
 
 // 3 * 2
 const PAINT_BOARD_HEIGHT: f32 = 640.;
@@ -40,19 +45,30 @@ fn setup(
     asset_server: Res<AssetServer>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
+    mut images: ResMut<Assets<Image>>,
 ) {
     commands.spawn(Camera2d);
 
-    let mut mortar = Sprite::from_image(asset_server.load("resources/flower.png"));
-    mortar.custom_size = Some(Vec2::new(SPIRIT_WIDTH, SPIRIT_HEIGHT));
+    let split_images = split_image(
+        "assets/resources/flower.png",
+        SPIRIT_WIDTH_COUNT,
+        SPIRIT_HEIGHT_COUNT,
+    )
+    .unwrap();
+    
+    for image in split_images {
+        let img = Image::from_dynamic(image, true, RenderAssetUsages::RENDER_WORLD);
+        let img_handle = images.add(img);
 
-    commands.spawn((
-        mortar,
-        Transform::from_xyz(0., 0., 0.),
-        MoveStatus::Init,
-        CorrectPosition(Transform::from_xyz(0., 0., 0.)),
-    ));
-
+        let mut sprite = Sprite::from_image(img_handle);
+        sprite.custom_size = Some(Vec2::new(SPIRIT_SIDE_LENGTH, SPIRIT_SIDE_LENGTH));
+        commands.spawn((
+            sprite,
+            Transform::from_xyz(0., 0., 0.),
+            MoveStatus::Init,
+            CorrectPosition(Transform::from_xyz(0., 0., 0.)),
+        ));
+    }
     commands.spawn((
         Mesh2d(meshes.add(Rectangle::new(PAINT_BOARD_WIDTH, PAINT_BOARD_HEIGHT))),
         MeshMaterial2d(materials.add(PAINT_BOARD_COLOR)),
@@ -158,4 +174,29 @@ fn cursor_on_sprite(world_position: &Vec2, transform: &Transform) -> bool {
     let delta_y = world_position.y - transform.translation.y;
 
     delta_x * delta_x + delta_y * delta_y < SPIRIT_RADIUS
+}
+
+pub fn split_image<P: AsRef<Path>>(
+    image_path: P,
+    width_count: u32,
+    height_count: u32,
+) -> Result<Vec<DynamicImage>, image::ImageError> {
+    let img = image::open(image_path)?;
+
+    let (width, height) = img.dimensions();
+
+    let sub_width = width / width_count;
+    let sub_height = height / height_count;
+
+    let mut sub_images = Vec::new();
+
+    for y in 0..height_count {
+        for x in 0..width_count {
+            let sub_img = img.crop_imm(x * sub_width, y * sub_height, sub_width, sub_height);
+
+            sub_images.push(sub_img);
+        }
+    }
+
+    Ok(sub_images)
 }

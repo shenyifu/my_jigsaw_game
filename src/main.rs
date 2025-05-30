@@ -27,6 +27,7 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_systems(Startup, setup)
         .add_systems(Update, move_sprite)
+        .insert_resource(DeltaPosition(Transform::default()))
         .add_systems(
             Update,
             click_chose.run_if(input_just_pressed(MouseButton::Left)),
@@ -39,15 +40,11 @@ enum MoveStatus {
     Init,
     MoveSprite,
 }
+#[derive(Resource)]
+struct DeltaPosition(Transform);
 
 #[derive(Component)]
-struct CorrectPosition(Transform);
-
-#[derive(Component)]
-#[require(
-    Sprite,
-    Transform,
-)]
+#[require(Sprite, Transform)]
 struct Piece {
     correct_position: Transform,
     move_status: MoveStatus,
@@ -114,6 +111,7 @@ fn setup(
 
 fn move_sprite(
     mut pieces: Query<(&mut Piece, &mut Transform)>,
+    delta_position: Res<DeltaPosition>,
     q_window: Query<&Window, With<PrimaryWindow>>,
     q_camera: Query<(&Camera, &GlobalTransform)>,
 ) {
@@ -125,18 +123,19 @@ fn move_sprite(
         .and_then(|cursor| Some(camera.viewport_to_world(camera_transform, cursor).unwrap()))
         .map(|ray| ray.origin.truncate())
     {
-        for  (mut piece, mut current_position) in pieces.iter_mut() {
+        for (mut piece, mut current_position) in pieces.iter_mut() {
             if piece.move_status == MoveStatus::MoveSprite {
-                current_position.translation.x = world_position.x;
-                current_position.translation.y = world_position.y;
+                current_position.translation.x = world_position.x + delta_position.0.translation.x;
+                current_position.translation.y = world_position.y + delta_position.0.translation.y;
             }
         }
     }
 }
 
 fn click_chose(
-    mut pieces: Query<(&mut Piece,&mut Transform)>,
+    mut pieces: Query<(&mut Piece, &mut Transform)>,
     mut result: Query<(&mut Text, &mut TextColor)>,
+    mut delta_position: ResMut<DeltaPosition>,
     q_window: Query<&Window, With<PrimaryWindow>>,
     q_camera: Query<(&Camera, &GlobalTransform)>,
 ) {
@@ -157,7 +156,7 @@ fn click_chose(
         }
         let mut check_all_correct = false;
 
-        for  (mut piece, current_position) in pieces.iter_mut() {
+        for (mut piece, current_position) in pieces.iter_mut() {
             if some_in_move {
                 piece.move_status = MoveStatus::Init;
                 // todo check if on paint board and near one correct position
@@ -167,6 +166,8 @@ fn click_chose(
                 check_all_correct = true;
             } else if cursor_on_sprite(&world_position, &current_position) {
                 piece.move_status = MoveStatus::MoveSprite;
+                delta_position.0.translation.x = current_position.translation.x - world_position.x;
+                delta_position.0.translation.y = current_position.translation.y - world_position.y;
                 break;
             }
         }
@@ -184,12 +185,12 @@ fn click_chose(
 }
 
 fn all_sprite_correct(pieces: &Query<(&mut Piece, &mut Transform)>) -> bool {
-    for ( piece,  transform) in pieces.iter() {
-         if piece.correct_position.translation.x != transform.translation.x 
-         || piece.correct_position.translation.y != transform.translation.y{
-             return false;
-         }
-        
+    for (piece, transform) in pieces.iter() {
+        if piece.correct_position.translation.x != transform.translation.x
+            || piece.correct_position.translation.y != transform.translation.y
+        {
+            return false;
+        }
     }
     true
 }

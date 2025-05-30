@@ -5,6 +5,7 @@ use bevy::window::PrimaryWindow;
 use image::{DynamicImage, GenericImageView};
 use std::cmp::PartialEq;
 use std::path::Path;
+use std::sync::{Arc, Mutex};
 
 const SPIRIT_HEIGHT_COUNT: u8 = 2;
 const SPIRIT_WIDTH_COUNT: u8 = 3;
@@ -12,6 +13,8 @@ const SPIRIT_SIDE_LENGTH: f32 = PAINT_BOARD_HEIGHT / (SPIRIT_HEIGHT_COUNT as f32
 
 const SPIRIT_RADIUS: f32 =
     (SPIRIT_SIDE_LENGTH * SPIRIT_SIDE_LENGTH + SPIRIT_SIDE_LENGTH * SPIRIT_SIDE_LENGTH) / 4.;
+
+const SPIRIT_RADIUS_HALF: f32 = SPIRIT_RADIUS / 4.;
 
 // 3 * 2
 const PAINT_BOARD_HEIGHT: f32 = 640.;
@@ -40,6 +43,17 @@ enum MoveStatus {
 #[derive(Component)]
 struct CorrectPosition(Transform);
 
+#[derive(Component)]
+#[require(
+    Sprite,
+    Transform,
+)]
+struct Piece {
+    correct_position: Transform,
+    move_status: MoveStatus,
+    all_correct_position: Arc<Mutex<Vec<Transform>>>,
+}
+
 fn setup(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -56,6 +70,8 @@ fn setup(
     )
     .unwrap();
 
+    let rc: Arc<Mutex<Vec<Transform>>> = Arc::new(Mutex::new(Vec::new()));
+
     for (index, image) in split_images.into_iter().enumerate() {
         let img = Image::from_dynamic(image, true, RenderAssetUsages::RENDER_WORLD);
         let img_handle = images.add(img);
@@ -64,10 +80,13 @@ fn setup(
         sprite.custom_size = Some(Vec2::new(SPIRIT_SIDE_LENGTH, SPIRIT_SIDE_LENGTH));
         let correct_position = get_correct_position(index);
         commands.spawn((
-            sprite,
+            Piece {
+                correct_position,
+                move_status: MoveStatus::Init,
+                all_correct_position: rc.clone(),
+            },
             correct_position.clone(),
-            MoveStatus::Init,
-            CorrectPosition(correct_position),
+            sprite,
         ));
     }
     commands.spawn((
@@ -94,7 +113,7 @@ fn setup(
 }
 
 fn move_sprite(
-    mut sprite_position: Query<(&mut MoveStatus, &mut Transform)>,
+    mut pieces: Query<(&mut Piece, &mut Transform)>,
     q_window: Query<&Window, With<PrimaryWindow>>,
     q_camera: Query<(&Camera, &GlobalTransform)>,
 ) {
@@ -106,17 +125,17 @@ fn move_sprite(
         .and_then(|cursor| Some(camera.viewport_to_world(camera_transform, cursor).unwrap()))
         .map(|ray| ray.origin.truncate())
     {
-        for (move_status, mut transform) in sprite_position.iter_mut() {
-            if *move_status == MoveStatus::MoveSprite {
-                transform.translation.x = world_position.x;
-                transform.translation.y = world_position.y;
+        for  (mut piece, mut current_position) in pieces.iter_mut() {
+            if piece.move_status == MoveStatus::MoveSprite {
+                current_position.translation.x = world_position.x;
+                current_position.translation.y = world_position.y;
             }
         }
     }
 }
 
 fn click_chose(
-    mut sprite_position: Query<(&mut MoveStatus, &mut Transform, &CorrectPosition)>,
+    mut pieces: Query<(&mut Piece,&mut Transform)>,
     mut result: Query<(&mut Text, &mut TextColor)>,
     q_window: Query<&Window, With<PrimaryWindow>>,
     q_camera: Query<(&Camera, &GlobalTransform)>,
@@ -130,30 +149,30 @@ fn click_chose(
         .map(|ray| ray.origin.truncate())
     {
         let mut some_in_move = false;
-        for (move_status, _, _) in sprite_position.iter_mut() {
-            match *move_status {
+        for (piece, _) in pieces.iter_mut() {
+            match piece.move_status {
                 MoveStatus::Init => (),
                 MoveStatus::MoveSprite => some_in_move = true,
             }
         }
         let mut check_all_correct = false;
 
-        for (mut move_status, transform, _) in sprite_position.iter_mut() {
+        for  (mut piece, current_position) in pieces.iter_mut() {
             if some_in_move {
-                *move_status = MoveStatus::Init;
+                piece.move_status = MoveStatus::Init;
                 // todo check if on paint board and near one correct position
                 // if so please it to one correct position
                 // check if all already correct
                 // only check one now
                 check_all_correct = true;
-            } else if cursor_on_sprite(&world_position, &transform) {
-                *move_status = MoveStatus::MoveSprite;
+            } else if cursor_on_sprite(&world_position, &current_position) {
+                piece.move_status = MoveStatus::MoveSprite;
                 break;
             }
         }
 
         if check_all_correct {
-            if all_sprite_correct(&sprite_position) {
+            if all_sprite_correct(&pieces) {
                 // change result to correct
                 for (mut text, mut color) in result.iter_mut() {
                     color.0 = Color::srgb(0., 255., 0.);
@@ -164,9 +183,7 @@ fn click_chose(
     }
 }
 
-fn all_sprite_correct(
-    sprite_position: &Query<(&mut MoveStatus, &mut Transform, &CorrectPosition)>,
-) -> bool {
+fn all_sprite_correct(pieces: &Query<(&mut Piece, &mut Transform)>) -> bool {
     true
 }
 

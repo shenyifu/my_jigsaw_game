@@ -42,13 +42,14 @@ enum MoveStatus {
 }
 #[derive(Resource)]
 struct DeltaPosition(Transform);
+#[derive(Resource)]
+struct CorrectPositions(Vec<Transform>);
 
 #[derive(Component)]
 #[require(Sprite, Transform)]
 struct Piece {
     correct_position: Transform,
     move_status: MoveStatus,
-    all_correct_position: Arc<Mutex<Vec<Transform>>>,
 }
 
 fn setup(
@@ -67,7 +68,7 @@ fn setup(
     )
     .unwrap();
 
-    let rc: Arc<Mutex<Vec<Transform>>> = Arc::new(Mutex::new(Vec::new()));
+    let mut all_correct_positions = vec![];
 
     for (index, image) in split_images.into_iter().enumerate() {
         let img = Image::from_dynamic(image, true, RenderAssetUsages::RENDER_WORLD);
@@ -76,16 +77,18 @@ fn setup(
         let mut sprite = Sprite::from_image(img_handle);
         sprite.custom_size = Some(Vec2::new(SPIRIT_SIDE_LENGTH, SPIRIT_SIDE_LENGTH));
         let correct_position = get_correct_position(index);
+        all_correct_positions.push(correct_position);
         commands.spawn((
             Piece {
                 correct_position,
                 move_status: MoveStatus::Init,
-                all_correct_position: rc.clone(),
             },
-            correct_position.clone(),
+            correct_position,
             sprite,
         ));
     }
+    commands.insert_resource(CorrectPositions(all_correct_positions));
+
     commands.spawn((
         Mesh2d(meshes.add(Rectangle::new(PAINT_BOARD_WIDTH, PAINT_BOARD_HEIGHT))),
         MeshMaterial2d(materials.add(PAINT_BOARD_COLOR)),
@@ -136,6 +139,7 @@ fn click_chose(
     mut pieces: Query<(&mut Piece, &mut Transform)>,
     mut result: Query<(&mut Text, &mut TextColor)>,
     mut delta_position: ResMut<DeltaPosition>,
+    correct_positions: Res<CorrectPositions>,
     q_window: Query<&Window, With<PrimaryWindow>>,
     q_camera: Query<(&Camera, &GlobalTransform)>,
 ) {
@@ -154,16 +158,20 @@ fn click_chose(
                 MoveStatus::MoveSprite => some_in_move = true,
             }
         }
-        let mut check_all_correct = false;
 
-        for (mut piece, current_position) in pieces.iter_mut() {
+        for (mut piece, mut current_position) in pieces.iter_mut() {
             if some_in_move {
-                piece.move_status = MoveStatus::Init;
-                // todo check if on paint board and near one correct position
-                // if so please it to one correct position
-                // check if all already correct
-                // only check one now
-                check_all_correct = true;
+                if piece.move_status == MoveStatus::MoveSprite {
+                    let close_position =
+                        close_correct_position(&current_position, &correct_positions);
+
+                    if let Some(close_position) = close_position {
+                        current_position.translation.x = close_position.translation.x;
+                        current_position.translation.y = close_position.translation.y;
+                    }
+
+                    piece.move_status = MoveStatus::Init;
+                }
             } else if cursor_on_sprite(&world_position, &current_position) {
                 piece.move_status = MoveStatus::MoveSprite;
                 delta_position.0.translation.x = current_position.translation.x - world_position.x;
@@ -172,7 +180,7 @@ fn click_chose(
             }
         }
 
-        if check_all_correct {
+        if some_in_move {
             if all_sprite_correct(&pieces) {
                 // change result to correct
                 for (mut text, mut color) in result.iter_mut() {
@@ -225,6 +233,20 @@ pub fn split_image<P: AsRef<Path>>(
     }
 
     Ok(sub_images)
+}
+
+fn close_correct_position(
+    current: &Transform,
+    correct_positions: &CorrectPositions,
+) -> Option<Transform> {
+    for position in correct_positions.0.iter() {
+        let delta_x = current.translation.x - position.translation.x;
+        let delta_y = current.translation.y - position.translation.y;
+        if delta_x * delta_x + delta_y * delta_y < SPIRIT_RADIUS_HALF {
+            return Some(position.clone());
+        }
+    }
+    None
 }
 
 fn get_correct_position(index: usize) -> Transform {

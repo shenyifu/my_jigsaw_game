@@ -184,6 +184,13 @@ fn click_chose(
 }
 
 fn all_sprite_correct(pieces: &Query<(&mut Piece, &mut Transform)>) -> bool {
+    for ( piece,  transform) in pieces.iter() {
+         if piece.correct_position.translation.x != transform.translation.x 
+         || piece.correct_position.translation.y != transform.translation.y{
+             return false;
+         }
+        
+    }
     true
 }
 

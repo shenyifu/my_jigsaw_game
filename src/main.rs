@@ -5,7 +5,6 @@ use bevy::window::PrimaryWindow;
 use image::{DynamicImage, GenericImageView};
 use std::cmp::PartialEq;
 use std::path::Path;
-use std::sync::{Arc, Mutex};
 
 const SPIRIT_HEIGHT_COUNT: u8 = 2;
 const SPIRIT_WIDTH_COUNT: u8 = 3;
@@ -44,6 +43,14 @@ enum MoveStatus {
 struct DeltaPosition(Transform);
 #[derive(Resource)]
 struct CorrectPositions(Vec<Transform>);
+
+#[derive(Component)]
+struct CorrectPosition;
+
+enum CorrectPositionStatus {
+    Init,
+    Used,
+}
 
 #[derive(Component)]
 #[require(Sprite, Transform)]
@@ -86,14 +93,14 @@ fn setup(
             correct_position,
             sprite,
         ));
+
+        commands.spawn((
+            Mesh2d(meshes.add(Rectangle::new(SPIRIT_SIDE_LENGTH, SPIRIT_SIDE_LENGTH))),
+            MeshMaterial2d(materials.add(PAINT_BOARD_COLOR)),
+            correct_position,
+        ));
     }
     commands.insert_resource(CorrectPositions(all_correct_positions));
-
-    commands.spawn((
-        Mesh2d(meshes.add(Rectangle::new(PAINT_BOARD_WIDTH, PAINT_BOARD_HEIGHT))),
-        MeshMaterial2d(materials.add(PAINT_BOARD_COLOR)),
-        Transform::from_xyz(0., 0.0, 0.0),
-    ));
 
     commands.spawn((
         Text::new("come on!"),

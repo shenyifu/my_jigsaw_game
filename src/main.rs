@@ -1,9 +1,9 @@
 use bevy::asset::RenderAssetUsages;
-use bevy::ecs::bundle::DynamicBundle;
 use bevy::input::common_conditions::*;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use image::{DynamicImage, GenericImageView};
+use rand::{Rng, thread_rng};
 use std::cmp::PartialEq;
 use std::path::Path;
 
@@ -97,7 +97,7 @@ fn setup(
                 move_status: MoveStatus::Init,
                 used_correct_position: None,
             },
-            correct_position,
+            random_position(),
             sprite,
         ));
 
@@ -127,6 +127,16 @@ fn setup(
             ..default()
         },
     ));
+}
+
+fn random_position() -> Transform {
+    let mut rng = thread_rng();
+
+    Transform::from_xyz(
+        rng.gen_range(-800., 800.),
+        rng.gen_range(-500., 500.),
+        0.,
+    )
 }
 
 fn move_sprite(

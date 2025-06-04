@@ -142,7 +142,7 @@ fn move_sprite(
         .and_then(|cursor| Some(camera.viewport_to_world(camera_transform, cursor).unwrap()))
         .map(|ray| ray.origin.truncate())
     {
-        for (mut piece, mut current_position) in pieces.iter_mut() {
+        for (piece, mut current_position) in pieces.iter_mut() {
             if piece.move_status == MoveStatus::MoveSprite {
                 current_position.translation.x = world_position.x + delta_position.0.translation.x;
                 current_position.translation.y = world_position.y + delta_position.0.translation.y;
@@ -157,7 +157,7 @@ fn click_chose(
     mut delta_position: ResMut<DeltaPosition>,
     q_window: Query<&Window, With<PrimaryWindow>>,
     q_camera: Query<(&Camera, &GlobalTransform)>,
-    mut correct_positions: Query<(&mut CorrectPosition, &Transform), (Without<Piece>)>,
+    mut correct_positions: Query<(&mut CorrectPosition, &Transform), Without<Piece>>,
 ) {
     let (camera, camera_transform) = q_camera.single().unwrap();
     let window = q_window.single().unwrap();
@@ -198,7 +198,7 @@ fn click_chose(
                 }
             }
         } else {
-            for (mut piece, mut current_position) in pieces.iter_mut() {
+            for (mut piece, current_position) in pieces.iter_mut() {
                 if cursor_on_sprite(&world_position, &current_position) {
                     piece.move_status = MoveStatus::MoveSprite;
                     delta_position.0.translation.x =
@@ -207,9 +207,7 @@ fn click_chose(
                         current_position.translation.y - world_position.y;
                     // if already on correct position, change status of correct position
                     if piece.used_correct_position.is_some() {
-                        for (mut correct_position, correct_position_transform) in
-                            correct_positions.iter_mut()
-                        {
+                        for (mut correct_position, _) in correct_positions.iter_mut() {
                             if correct_position.index == piece.used_correct_position.unwrap() {
                                 correct_position.status = CorrectPositionStatus::Init;
                                 break;
@@ -281,9 +279,8 @@ fn get_correct_position(index: usize) -> Transform {
     let height_index = SPIRIT_HEIGHT_COUNT as usize - 1 - (index / SPIRIT_WIDTH_COUNT as usize);
 
     Transform::from_xyz(
-        SPIRIT_SIDE_LENGTH as f32 / 2. + width_index as f32 * SPIRIT_SIDE_LENGTH
-            - PAINT_BOARD_WIDTH / 2.,
-        SPIRIT_SIDE_LENGTH as f32 / 2. + height_index as f32 * SPIRIT_SIDE_LENGTH
+        SPIRIT_SIDE_LENGTH / 2. + width_index as f32 * SPIRIT_SIDE_LENGTH - PAINT_BOARD_WIDTH / 2.,
+        SPIRIT_SIDE_LENGTH / 2. + height_index as f32 * SPIRIT_SIDE_LENGTH
             - PAINT_BOARD_HEIGHT / 2.,
         0.0,
     )

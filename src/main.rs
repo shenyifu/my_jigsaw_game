@@ -20,6 +20,7 @@ const PAINT_BOARD_HEIGHT: f32 = 640.;
 const PAINT_BOARD_WIDTH: f32 = 960.;
 
 const PAINT_BOARD_COLOR: Color = Color::srgb(255., 255., 255.);
+const PAINT_PRE_SELECT_COLOR: Color = Color::srgb(0., 255., 0.);
 
 fn main() {
     App::new()
@@ -41,12 +42,15 @@ enum MoveStatus {
 }
 #[derive(Resource)]
 struct DeltaPosition(Transform);
-#[derive(Resource)]
-struct CorrectPositions(Vec<Transform>);
 
 #[derive(Component)]
-struct CorrectPosition;
+#[require(Transform)]
+struct CorrectPosition {
+    status: CorrectPositionStatus,
+    index: usize,
+}
 
+#[derive(PartialEq)]
 enum CorrectPositionStatus {
     Init,
     Used,
@@ -57,6 +61,7 @@ enum CorrectPositionStatus {
 struct Piece {
     correct_position: Transform,
     move_status: MoveStatus,
+    used_correct_position: Option<usize>,
 }
 
 fn setup(
@@ -89,6 +94,7 @@ fn setup(
             Piece {
                 correct_position,
                 move_status: MoveStatus::Init,
+                used_correct_position: None,
             },
             correct_position,
             sprite,
@@ -98,9 +104,12 @@ fn setup(
             Mesh2d(meshes.add(Rectangle::new(SPIRIT_SIDE_LENGTH, SPIRIT_SIDE_LENGTH))),
             MeshMaterial2d(materials.add(PAINT_BOARD_COLOR)),
             correct_position,
+            CorrectPosition {
+                status: CorrectPositionStatus::Init,
+                index,
+            },
         ));
     }
-    commands.insert_resource(CorrectPositions(all_correct_positions));
 
     commands.spawn((
         Text::new("come on!"),
@@ -146,9 +155,9 @@ fn click_chose(
     mut pieces: Query<(&mut Piece, &mut Transform)>,
     mut result: Query<(&mut Text, &mut TextColor)>,
     mut delta_position: ResMut<DeltaPosition>,
-    correct_positions: Res<CorrectPositions>,
     q_window: Query<&Window, With<PrimaryWindow>>,
     q_camera: Query<(&Camera, &GlobalTransform)>,
+    mut correct_positions: Query<(&mut CorrectPosition, &Transform), (Without<Piece>)>,
 ) {
     let (camera, camera_transform) = q_camera.single().unwrap();
     let window = q_window.single().unwrap();
@@ -158,41 +167,57 @@ fn click_chose(
         .and_then(|cursor| Some(camera.viewport_to_world(camera_transform, cursor).unwrap()))
         .map(|ray| ray.origin.truncate())
     {
-        let mut some_in_move = false;
-        for (piece, _) in pieces.iter_mut() {
+        let mut move_piece = None;
+        for (piece, transform) in pieces.iter_mut() {
             match piece.move_status {
                 MoveStatus::Init => (),
-                MoveStatus::MoveSprite => some_in_move = true,
+                MoveStatus::MoveSprite => move_piece = Some((piece, transform)),
             }
         }
 
-        for (mut piece, mut current_position) in pieces.iter_mut() {
-            if some_in_move {
-                if piece.move_status == MoveStatus::MoveSprite {
-                    let close_position =
-                        close_correct_position(&current_position, &correct_positions);
+        if move_piece.is_some() {
+            let (mut piece, mut current_position) = move_piece.unwrap();
 
-                    if let Some(close_position) = close_position {
-                        current_position.translation.x = close_position.translation.x;
-                        current_position.translation.y = close_position.translation.y;
-                    }
-
-                    piece.move_status = MoveStatus::Init;
+            for (mut correct_position, correct_position_transform) in correct_positions.iter_mut() {
+                if close_correct_position(&current_position, &correct_position_transform)
+                    && correct_position.status == CorrectPositionStatus::Init
+                {
+                    current_position.translation.x = correct_position_transform.translation.x;
+                    current_position.translation.y = correct_position_transform.translation.y;
+                    correct_position.status = CorrectPositionStatus::Used;
+                    piece.used_correct_position = Some(correct_position.index);
                 }
-            } else if cursor_on_sprite(&world_position, &current_position) {
-                piece.move_status = MoveStatus::MoveSprite;
-                delta_position.0.translation.x = current_position.translation.x - world_position.x;
-                delta_position.0.translation.y = current_position.translation.y - world_position.y;
-                break;
-            }
-        }
 
-        if some_in_move {
+                piece.move_status = MoveStatus::Init;
+            }
             if all_sprite_correct(&pieces) {
                 // change result to correct
                 for (mut text, mut color) in result.iter_mut() {
                     color.0 = Color::srgb(0., 255., 0.);
                     *text = Text::new("Well Done!");
+                }
+            }
+        } else {
+            for (mut piece, mut current_position) in pieces.iter_mut() {
+                if cursor_on_sprite(&world_position, &current_position) {
+                    piece.move_status = MoveStatus::MoveSprite;
+                    delta_position.0.translation.x =
+                        current_position.translation.x - world_position.x;
+                    delta_position.0.translation.y =
+                        current_position.translation.y - world_position.y;
+                    // if already on correct position, change status of correct position
+                    if piece.used_correct_position.is_some() {
+                        for (mut correct_position, correct_position_transform) in
+                            correct_positions.iter_mut()
+                        {
+                            if correct_position.index == piece.used_correct_position.unwrap() {
+                                correct_position.status = CorrectPositionStatus::Init;
+                                break;
+                            }
+                        }
+                        piece.used_correct_position = None;
+                    }
+                    break;
                 }
             }
         }
@@ -242,18 +267,13 @@ pub fn split_image<P: AsRef<Path>>(
     Ok(sub_images)
 }
 
-fn close_correct_position(
-    current: &Transform,
-    correct_positions: &CorrectPositions,
-) -> Option<Transform> {
-    for position in correct_positions.0.iter() {
-        let delta_x = current.translation.x - position.translation.x;
-        let delta_y = current.translation.y - position.translation.y;
-        if delta_x * delta_x + delta_y * delta_y < SPIRIT_RADIUS_HALF {
-            return Some(position.clone());
-        }
+fn close_correct_position(current: &Transform, correct_position: &Transform) -> bool {
+    let delta_x = current.translation.x - correct_position.translation.x;
+    let delta_y = current.translation.y - correct_position.translation.y;
+    if delta_x * delta_x + delta_y * delta_y < SPIRIT_RADIUS_HALF {
+        return true;
     }
-    None
+    false
 }
 
 fn get_correct_position(index: usize) -> Transform {

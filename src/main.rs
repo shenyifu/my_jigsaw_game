@@ -1,4 +1,5 @@
 use bevy::asset::RenderAssetUsages;
+use bevy::ecs::bundle::DynamicBundle;
 use bevy::input::common_conditions::*;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
@@ -133,6 +134,15 @@ fn move_sprite(
     delta_position: Res<DeltaPosition>,
     q_window: Query<&Window, With<PrimaryWindow>>,
     q_camera: Query<(&Camera, &GlobalTransform)>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    mut correct_positions: Query<
+        (
+            &mut CorrectPosition,
+            &Transform,
+            &mut MeshMaterial2d<ColorMaterial>,
+        ),
+        Without<Piece>,
+    >,
 ) {
     let (camera, camera_transform) = q_camera.single().unwrap();
     let window = q_window.single().unwrap();
@@ -146,6 +156,20 @@ fn move_sprite(
             if piece.move_status == MoveStatus::MoveSprite {
                 current_position.translation.x = world_position.x + delta_position.0.translation.x;
                 current_position.translation.y = world_position.y + delta_position.0.translation.y;
+                // when close to correct position and not used, hint it
+
+                for (correct_position, correct_position_transform, mut color_material) in
+                    correct_positions.iter_mut()
+                {
+                    if close_correct_position(&current_position, &correct_position_transform)
+                        && correct_position.status == CorrectPositionStatus::Init
+                    {
+                        materials.get_mut(color_material.id()).unwrap().color =
+                            PAINT_PRE_SELECT_COLOR;
+                    } else {
+                        materials.get_mut(color_material.id()).unwrap().color = PAINT_BOARD_COLOR;
+                    }
+                }
             }
         }
     }
@@ -157,7 +181,15 @@ fn click_chose(
     mut delta_position: ResMut<DeltaPosition>,
     q_window: Query<&Window, With<PrimaryWindow>>,
     q_camera: Query<(&Camera, &GlobalTransform)>,
-    mut correct_positions: Query<(&mut CorrectPosition, &Transform), Without<Piece>>,
+    mut correct_positions: Query<
+        (
+            &mut CorrectPosition,
+            &Transform,
+            &mut MeshMaterial2d<ColorMaterial>,
+        ),
+        Without<Piece>,
+    >,
+    mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     let (camera, camera_transform) = q_camera.single().unwrap();
     let window = q_window.single().unwrap();
@@ -178,7 +210,9 @@ fn click_chose(
         if move_piece.is_some() {
             let (mut piece, mut current_position) = move_piece.unwrap();
 
-            for (mut correct_position, correct_position_transform) in correct_positions.iter_mut() {
+            for (mut correct_position, correct_position_transform, color_material) in
+                correct_positions.iter_mut()
+            {
                 if close_correct_position(&current_position, &correct_position_transform)
                     && correct_position.status == CorrectPositionStatus::Init
                 {
@@ -186,6 +220,7 @@ fn click_chose(
                     current_position.translation.y = correct_position_transform.translation.y;
                     correct_position.status = CorrectPositionStatus::Used;
                     piece.used_correct_position = Some(correct_position.index);
+                    materials.get_mut(color_material.id()).unwrap().color = PAINT_BOARD_COLOR;
                 }
 
                 piece.move_status = MoveStatus::Init;
@@ -207,7 +242,7 @@ fn click_chose(
                         current_position.translation.y - world_position.y;
                     // if already on correct position, change status of correct position
                     if piece.used_correct_position.is_some() {
-                        for (mut correct_position, _) in correct_positions.iter_mut() {
+                        for (mut correct_position, _, _) in correct_positions.iter_mut() {
                             if correct_position.index == piece.used_correct_position.unwrap() {
                                 correct_position.status = CorrectPositionStatus::Init;
                                 break;

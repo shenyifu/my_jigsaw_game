@@ -5,7 +5,9 @@ use bevy::window::PrimaryWindow;
 use image::{DynamicImage, GenericImageView};
 use rand::{Rng, thread_rng};
 use std::cmp::PartialEq;
+use std::fmt::Display;
 use std::path::Path;
+use strum::{EnumIter, IntoEnumIterator};
 
 const SPIRIT_HEIGHT_COUNT: u8 = 2;
 const SPIRIT_WIDTH_COUNT: u8 = 3;
@@ -30,7 +32,7 @@ enum GameState {
     Success,
 }
 
-#[derive(Resource, Debug, Component, PartialEq, Eq, Clone, Copy)]
+#[derive(Resource, Debug, Component, PartialEq, Eq, Clone, Copy, EnumIter)]
 enum TotalPieces {
     P6,
     P24,
@@ -55,18 +57,34 @@ impl TotalPieces {
             TotalPieces::P96 => 4,
         }
     }
+
+    fn get_value(&self) -> u8 {
+        match self {
+            TotalPieces::P6 => 6,
+            TotalPieces::P24 => 24,
+            TotalPieces::P54 => 54,
+            TotalPieces::P96 => 96,
+        }
+    }
+}
+
+impl Display for TotalPieces {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.get_value())
+    }
 }
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
+        .add_systems(Startup, setup)
         // for config
         .insert_state(GameState::Config)
         .init_state::<GameState>()
-        .add_systems(OnEnter(GameState::Config), setupConfig)
+        .add_systems(OnEnter(GameState::Config), setup_config)
         .insert_resource(TotalPieces::P6)
         // for play
-        .add_systems(OnEnter(GameState::Play), setup)
+        .add_systems(OnEnter(GameState::Play), setup_game)
         .add_systems(Update, move_sprite.run_if(in_state(GameState::Play)))
         .insert_resource(DeltaPosition(Transform::default()))
         .add_systems(
@@ -107,17 +125,31 @@ struct Piece {
     used_correct_position: Option<usize>,
 }
 
-fn setupConfig() {}
+#[derive(Component)]
+struct PieceButton {
+    total_piece: TotalPieces,
+}
 
-fn setup(
+fn setup_config(mut commands: Commands) {
+    for total_piece in TotalPieces::iter() {
+        commands.spawn((
+            Button,
+            PieceButton { total_piece },
+            children![Text::new(total_piece.to_string())],
+        ));
+    }
+}
+fn setup(mut commands: Commands) {
+    commands.spawn(Camera2d);
+}
+
+fn setup_game(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut images: ResMut<Assets<Image>>,
 ) {
-    commands.spawn(Camera2d);
-
     let split_images = split_image(
         "assets/resources/flower.png",
         SPIRIT_WIDTH_COUNT as u32,

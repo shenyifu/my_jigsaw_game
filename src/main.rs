@@ -11,8 +11,7 @@ const SPIRIT_HEIGHT_COUNT: u8 = 2;
 const SPIRIT_WIDTH_COUNT: u8 = 3;
 const SPIRIT_SIDE_LENGTH: f32 = PAINT_BOARD_HEIGHT / (SPIRIT_HEIGHT_COUNT as f32);
 
-const SPIRIT_RADIUS: f32 =
-    (SPIRIT_SIDE_LENGTH * SPIRIT_SIDE_LENGTH + SPIRIT_SIDE_LENGTH * SPIRIT_SIDE_LENGTH) / 4.;
+const SPIRIT_RADIUS: f32 = (SPIRIT_SIDE_LENGTH * SPIRIT_SIDE_LENGTH) / 2.;
 
 const SPIRIT_RADIUS_HALF: f32 = SPIRIT_RADIUS / 4.;
 
@@ -23,23 +22,58 @@ const PAINT_BOARD_WIDTH: f32 = 960.;
 const PAINT_BOARD_COLOR: Color = Color::srgb(255., 255., 255.);
 const PAINT_PRE_SELECT_COLOR: Color = Color::srgb(0., 255., 0.);
 
-#[derive(States, Debug, Clone, PartialEq, Eq, Hash)]
-enum AppState {
+#[derive(States, Default, Clone, Eq, Debug, Hash, PartialEq)]
+enum GameState {
+    #[default]
     Config,
     Play,
     Success,
 }
 
+#[derive(Resource, Debug, Component, PartialEq, Eq, Clone, Copy)]
+enum TotalPieces {
+    P6,
+    P24,
+    P54,
+    P96,
+}
+
+impl TotalPieces {
+    pub fn get_height_count(&self) -> u8 {
+        2 * self.get_factor()
+    }
+
+    pub fn get_width_count(&self) -> u8 {
+        3 * self.get_factor()
+    }
+
+    fn get_factor(&self) -> u8 {
+        match self {
+            TotalPieces::P6 => 1,
+            TotalPieces::P24 => 2,
+            TotalPieces::P54 => 3,
+            TotalPieces::P96 => 4,
+        }
+    }
+}
+
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        .insert_state(AppState::Play)
-        .add_systems(OnEnter(AppState::Play), setup)
-        .add_systems(Update, move_sprite.run_if(in_state(AppState::Play)))
+        // for config
+        .insert_state(GameState::Config)
+        .init_state::<GameState>()
+        .add_systems(OnEnter(GameState::Config), setupConfig)
+        .insert_resource(TotalPieces::P6)
+        // for play
+        .add_systems(OnEnter(GameState::Play), setup)
+        .add_systems(Update, move_sprite.run_if(in_state(GameState::Play)))
         .insert_resource(DeltaPosition(Transform::default()))
         .add_systems(
             Update,
-            click_chose.run_if(in_state(AppState::Play)).run_if(input_just_pressed(MouseButton::Left)),
+            click_chose
+                .run_if(in_state(GameState::Play))
+                .run_if(input_just_pressed(MouseButton::Left)),
         )
         .run();
 }
@@ -72,6 +106,8 @@ struct Piece {
     move_status: MoveStatus,
     used_correct_position: Option<usize>,
 }
+
+fn setupConfig() {}
 
 fn setup(
     mut commands: Commands,
@@ -140,11 +176,7 @@ fn setup(
 fn random_position() -> Transform {
     let mut rng = thread_rng();
 
-    Transform::from_xyz(
-        rng.gen_range(-800., 800.),
-        rng.gen_range(-500., 500.),
-        0.,
-    )
+    Transform::from_xyz(rng.gen_range(-800., 800.), rng.gen_range(-500., 500.), 0.)
 }
 
 fn move_sprite(

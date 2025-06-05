@@ -131,13 +131,40 @@ struct PieceButton {
 }
 
 fn setup_config(mut commands: Commands) {
-    for total_piece in TotalPieces::iter() {
-        commands.spawn((
-            Button,
-            PieceButton { total_piece },
-            children![Text::new(total_piece.to_string())],
-        ));
-    }
+    let button_node = Node {
+        width: Val::Px(300.0),
+        height: Val::Px(65.0),
+        margin: UiRect::all(Val::Px(20.0)),
+        justify_content: JustifyContent::Center,
+        align_items: AlignItems::Center,
+        ..default()
+    };
+
+    commands.spawn((
+        Node {
+            flex_direction: FlexDirection::Column,
+            align_items: AlignItems::Center,
+            ..default()
+        },
+        children![
+            (
+                Button,
+                button_node.clone(),
+                PieceButton {
+                    total_piece: TotalPieces::P6
+                },
+                children![Text::new(TotalPieces::P6.to_string())],
+            ),
+            (
+                Button,
+                button_node.clone(),
+                PieceButton {
+                    total_piece: TotalPieces::P24
+                },
+                children![Text::new(TotalPieces::P24.to_string())],
+            ),
+        ],
+    ));
 }
 fn setup(mut commands: Commands) {
     commands.spawn(Camera2d);

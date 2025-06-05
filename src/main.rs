@@ -23,15 +23,23 @@ const PAINT_BOARD_WIDTH: f32 = 960.;
 const PAINT_BOARD_COLOR: Color = Color::srgb(255., 255., 255.);
 const PAINT_PRE_SELECT_COLOR: Color = Color::srgb(0., 255., 0.);
 
+#[derive(States, Debug, Clone, PartialEq, Eq, Hash)]
+enum AppState {
+    Config,
+    Play,
+    Success,
+}
+
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        .add_systems(Startup, setup)
-        .add_systems(Update, move_sprite)
+        .insert_state(AppState::Play)
+        .add_systems(OnEnter(AppState::Play), setup)
+        .add_systems(Update, move_sprite.run_if(in_state(AppState::Play)))
         .insert_resource(DeltaPosition(Transform::default()))
         .add_systems(
             Update,
-            click_chose.run_if(input_just_pressed(MouseButton::Left)),
+            click_chose.run_if(in_state(AppState::Play)).run_if(input_just_pressed(MouseButton::Left)),
         )
         .run();
 }

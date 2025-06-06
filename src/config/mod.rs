@@ -1,7 +1,5 @@
 use crate::config::total_pieces::TotalPieces;
-use crate::{
-    GameState, OnConfigScreen, PieceButton, despawn_screen, start_game, total_piece_button_click,
-};
+use crate::{GameState, despawn_screen};
 use bevy::prelude::*;
 use strum::IntoEnumIterator;
 
@@ -11,6 +9,18 @@ pub fn config_plugin(app: &mut App) {
     app.add_systems(OnEnter(GameState::Config), setup_config)
         .add_systems(OnExit(GameState::Config), despawn_screen::<OnConfigScreen>);
 }
+
+#[derive(Component)]
+struct PieceButton {
+    total_piece: TotalPieces,
+}
+
+fn start_game(click: Trigger<Pointer<Click>>, mut state: ResMut<NextState<GameState>>) {
+    state.set(GameState::Play);
+}
+
+#[derive(Component)]
+struct OnConfigScreen;
 
 fn setup_config(mut commands: Commands) {
     let button_node = Node {
@@ -57,4 +67,15 @@ fn setup_config(mut commands: Commands) {
         .observe(start_game)
         .id();
     commands.entity(parent).add_child(start_game);
+}
+
+fn total_piece_button_click(
+    click: Trigger<Pointer<Click>>,
+    query: Query<&PieceButton>,
+    mut total_pieces: ResMut<TotalPieces>,
+) {
+    let piece_button = query.get(click.target);
+    if let Ok(piece_button) = piece_button {
+        *total_pieces = piece_button.total_piece;
+    }
 }

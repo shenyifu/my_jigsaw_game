@@ -1,3 +1,5 @@
+mod config;
+
 use bevy::asset::RenderAssetUsages;
 use bevy::input::common_conditions::*;
 use bevy::prelude::*;
@@ -8,8 +10,6 @@ use std::cmp::PartialEq;
 use std::fmt::Display;
 use std::path::Path;
 use strum::{EnumIter, IntoEnumIterator};
-
-const SPIRIT_HEIGHT_COUNT: u8 = 2;
 
 // 3 * 2
 const PAINT_BOARD_HEIGHT: f32 = 640.;

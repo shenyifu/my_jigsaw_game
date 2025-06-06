@@ -1,5 +1,4 @@
 use bevy::asset::RenderAssetUsages;
-use bevy::ecs::bundle::DynamicBundle;
 use bevy::input::common_conditions::*;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
@@ -160,6 +159,16 @@ fn setup_config(mut commands: Commands) {
             .id();
         commands.entity(parent).add_child(child);
     }
+
+    let start_game = commands
+        .spawn((Button, button_node.clone(), children![Text::new("start")]))
+        .observe(start_game)
+        .id();
+    commands.entity(parent).add_child(start_game);
+}
+
+fn start_game(click: Trigger<Pointer<Click>>, mut state: ResMut<NextState<GameState>>) {
+    state.set(GameState::Play);
 }
 
 fn total_piece_button_click(

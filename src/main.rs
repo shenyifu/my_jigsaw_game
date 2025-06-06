@@ -1,4 +1,5 @@
 use bevy::asset::RenderAssetUsages;
+use bevy::ecs::bundle::DynamicBundle;
 use bevy::input::common_conditions::*;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
@@ -79,7 +80,6 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_systems(Startup, setup)
         // for config
-        .insert_state(GameState::Config)
         .init_state::<GameState>()
         .add_systems(OnEnter(GameState::Config), setup_config)
         .insert_resource(TotalPieces::P6)
@@ -140,31 +140,37 @@ fn setup_config(mut commands: Commands) {
         ..default()
     };
 
-    commands.spawn((
-        Node {
+    let parent = commands
+        .spawn((Node {
             flex_direction: FlexDirection::Column,
             align_items: AlignItems::Center,
             ..default()
-        },
-        children![
-            (
+        },))
+        .id();
+
+    for total_piece in TotalPieces::iter() {
+        let child = commands
+            .spawn((
                 Button,
                 button_node.clone(),
-                PieceButton {
-                    total_piece: TotalPieces::P6
-                },
-                children![Text::new(TotalPieces::P6.to_string())],
-            ),
-            (
-                Button,
-                button_node.clone(),
-                PieceButton {
-                    total_piece: TotalPieces::P24
-                },
-                children![Text::new(TotalPieces::P24.to_string())],
-            ),
-        ],
-    ));
+                PieceButton { total_piece },
+                children![Text::new(total_piece.to_string())],
+            ))
+            .observe(total_piece_button_click)
+            .id();
+        commands.entity(parent).add_child(child);
+    }
+}
+
+fn total_piece_button_click(
+    click: Trigger<Pointer<Click>>,
+    query: Query<&PieceButton>,
+    mut total_pieces: ResMut<TotalPieces>,
+) {
+    let piece_button = query.get(click.target);
+    if let Ok(piece_button) = piece_button {
+        *total_pieces = piece_button.total_piece;
+    }
 }
 fn setup(mut commands: Commands) {
     commands.spawn(Camera2d);

@@ -74,6 +74,12 @@ impl Display for TotalPieces {
     }
 }
 
+fn despawn_screen<T: Component>(to_despawn: Query<Entity, With<T>>, mut commands: Commands) {
+    for entity in &to_despawn {
+        commands.entity(entity).despawn();
+    }
+}
+
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
@@ -81,6 +87,7 @@ fn main() {
         // for config
         .init_state::<GameState>()
         .add_systems(OnEnter(GameState::Config), setup_config)
+        .add_systems(OnExit(GameState::Config), despawn_screen::<OnConfigScreen>)
         .insert_resource(TotalPieces::P6)
         // for play
         .add_systems(OnEnter(GameState::Play), setup_game)
@@ -117,6 +124,9 @@ enum CorrectPositionStatus {
 }
 
 #[derive(Component)]
+struct OnConfigScreen;
+
+#[derive(Component)]
 #[require(Sprite, Transform)]
 struct Piece {
     correct_position: Transform,
@@ -140,11 +150,14 @@ fn setup_config(mut commands: Commands) {
     };
 
     let parent = commands
-        .spawn((Node {
-            flex_direction: FlexDirection::Column,
-            align_items: AlignItems::Center,
-            ..default()
-        },))
+        .spawn((
+            Node {
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Center,
+                ..default()
+            },
+            OnConfigScreen,
+        ))
         .id();
 
     for total_piece in TotalPieces::iter() {
@@ -154,6 +167,7 @@ fn setup_config(mut commands: Commands) {
                 button_node.clone(),
                 PieceButton { total_piece },
                 children![Text::new(total_piece.to_string())],
+                OnConfigScreen,
             ))
             .observe(total_piece_button_click)
             .id();
@@ -161,11 +175,18 @@ fn setup_config(mut commands: Commands) {
     }
 
     let start_game = commands
-        .spawn((Button, button_node.clone(), children![Text::new("start")]))
+        .spawn((
+            Button,
+            button_node.clone(),
+            children![Text::new("start")],
+            OnConfigScreen,
+        ))
         .observe(start_game)
         .id();
     commands.entity(parent).add_child(start_game);
 }
+
+fn clean_config() {}
 
 fn start_game(click: Trigger<Pointer<Click>>, mut state: ResMut<NextState<GameState>>) {
     state.set(GameState::Play);

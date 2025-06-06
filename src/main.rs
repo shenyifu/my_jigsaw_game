@@ -10,12 +10,6 @@ use std::path::Path;
 use strum::{EnumIter, IntoEnumIterator};
 
 const SPIRIT_HEIGHT_COUNT: u8 = 2;
-const SPIRIT_WIDTH_COUNT: u8 = 3;
-const SPIRIT_SIDE_LENGTH: f32 = PAINT_BOARD_HEIGHT / (SPIRIT_HEIGHT_COUNT as f32);
-
-const SPIRIT_RADIUS: f32 = (SPIRIT_SIDE_LENGTH * SPIRIT_SIDE_LENGTH) / 2.;
-
-const SPIRIT_RADIUS_HALF: f32 = SPIRIT_RADIUS / 4.;
 
 // 3 * 2
 const PAINT_BOARD_HEIGHT: f32 = 640.;
@@ -65,6 +59,18 @@ impl TotalPieces {
             TotalPieces::P54 => 54,
             TotalPieces::P96 => 96,
         }
+    }
+
+    pub fn get_side_length(&self) -> f32 {
+        PAINT_BOARD_HEIGHT / (self.get_height_count() as f32)
+    }
+
+    pub fn get_radius(&self) -> f32 {
+        (self.get_side_length() * self.get_side_length()) / 2.
+    }
+
+    pub fn get_radius_half(&self) -> f32 {
+        self.get_radius() / 4.
     }
 }
 
@@ -212,11 +218,12 @@ fn setup_game(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut images: ResMut<Assets<Image>>,
+    total_pieces: Res<TotalPieces>,
 ) {
     let split_images = split_image(
         "assets/resources/flower.png",
-        SPIRIT_WIDTH_COUNT as u32,
-        SPIRIT_HEIGHT_COUNT as u32,
+        total_pieces.get_width_count() as u32,
+        total_pieces.get_height_count() as u32,
     )
     .unwrap();
 
@@ -227,8 +234,11 @@ fn setup_game(
         let img_handle = images.add(img);
 
         let mut sprite = Sprite::from_image(img_handle);
-        sprite.custom_size = Some(Vec2::new(SPIRIT_SIDE_LENGTH, SPIRIT_SIDE_LENGTH));
-        let correct_position = get_correct_position(index);
+        sprite.custom_size = Some(Vec2::new(
+            total_pieces.get_side_length(),
+            total_pieces.get_side_length(),
+        ));
+        let correct_position = get_correct_position(index, &total_pieces);
         all_correct_positions.push(correct_position);
         commands.spawn((
             Piece {
@@ -241,7 +251,10 @@ fn setup_game(
         ));
 
         commands.spawn((
-            Mesh2d(meshes.add(Rectangle::new(SPIRIT_SIDE_LENGTH, SPIRIT_SIDE_LENGTH))),
+            Mesh2d(meshes.add(Rectangle::new(
+                total_pieces.get_side_length(),
+                total_pieces.get_side_length(),
+            ))),
             MeshMaterial2d(materials.add(PAINT_BOARD_COLOR)),
             correct_position,
             CorrectPosition {
@@ -288,6 +301,7 @@ fn move_sprite(
         ),
         Without<Piece>,
     >,
+    total_pieces: Res<TotalPieces>,
 ) {
     let (camera, camera_transform) = q_camera.single().unwrap();
     let window = q_window.single().unwrap();
@@ -306,8 +320,11 @@ fn move_sprite(
                 for (correct_position, correct_position_transform, mut color_material) in
                     correct_positions.iter_mut()
                 {
-                    if close_correct_position(&current_position, &correct_position_transform)
-                        && correct_position.status == CorrectPositionStatus::Init
+                    if close_correct_position(
+                        &current_position,
+                        &correct_position_transform,
+                        &total_pieces,
+                    ) && correct_position.status == CorrectPositionStatus::Init
                     {
                         materials.get_mut(color_material.id()).unwrap().color =
                             PAINT_PRE_SELECT_COLOR;
@@ -326,6 +343,7 @@ fn click_chose(
     mut delta_position: ResMut<DeltaPosition>,
     q_window: Query<&Window, With<PrimaryWindow>>,
     q_camera: Query<(&Camera, &GlobalTransform)>,
+    total_pieces: Res<TotalPieces>,
     mut correct_positions: Query<
         (
             &mut CorrectPosition,
@@ -358,8 +376,11 @@ fn click_chose(
             for (mut correct_position, correct_position_transform, color_material) in
                 correct_positions.iter_mut()
             {
-                if close_correct_position(&current_position, &correct_position_transform)
-                    && correct_position.status == CorrectPositionStatus::Init
+                if close_correct_position(
+                    &current_position,
+                    &correct_position_transform,
+                    &total_pieces,
+                ) && correct_position.status == CorrectPositionStatus::Init
                 {
                     current_position.translation.x = correct_position_transform.translation.x;
                     current_position.translation.y = correct_position_transform.translation.y;
@@ -379,7 +400,7 @@ fn click_chose(
             }
         } else {
             for (mut piece, current_position) in pieces.iter_mut() {
-                if cursor_on_sprite(&world_position, &current_position) {
+                if cursor_on_sprite(&world_position, &current_position, &total_pieces) {
                     piece.move_status = MoveStatus::MoveSprite;
                     delta_position.0.translation.x =
                         current_position.translation.x - world_position.x;
@@ -413,11 +434,15 @@ fn all_sprite_correct(pieces: &Query<(&mut Piece, &mut Transform)>) -> bool {
     true
 }
 
-fn cursor_on_sprite(world_position: &Vec2, transform: &Transform) -> bool {
+fn cursor_on_sprite(
+    world_position: &Vec2,
+    transform: &Transform,
+    total_pieces: &TotalPieces,
+) -> bool {
     let delta_x = world_position.x - transform.translation.x;
     let delta_y = world_position.y - transform.translation.y;
 
-    delta_x * delta_x + delta_y * delta_y < SPIRIT_RADIUS
+    delta_x * delta_x + delta_y * delta_y < total_pieces.get_radius()
 }
 
 pub fn split_image<P: AsRef<Path>>(
@@ -445,22 +470,29 @@ pub fn split_image<P: AsRef<Path>>(
     Ok(sub_images)
 }
 
-fn close_correct_position(current: &Transform, correct_position: &Transform) -> bool {
+fn close_correct_position(
+    current: &Transform,
+    correct_position: &Transform,
+    total_pieces: &TotalPieces,
+) -> bool {
     let delta_x = current.translation.x - correct_position.translation.x;
     let delta_y = current.translation.y - correct_position.translation.y;
-    if delta_x * delta_x + delta_y * delta_y < SPIRIT_RADIUS_HALF {
+    if delta_x * delta_x + delta_y * delta_y < total_pieces.get_radius_half() {
         return true;
     }
     false
 }
 
-fn get_correct_position(index: usize) -> Transform {
-    let width_index = index % SPIRIT_WIDTH_COUNT as usize;
-    let height_index = SPIRIT_HEIGHT_COUNT as usize - 1 - (index / SPIRIT_WIDTH_COUNT as usize);
+fn get_correct_position(index: usize, total_pieces: &TotalPieces) -> Transform {
+    let width_index = index % total_pieces.get_width_count() as usize;
+    let height_index = total_pieces.get_height_count() as usize
+        - 1
+        - (index / total_pieces.get_width_count() as usize);
 
     Transform::from_xyz(
-        SPIRIT_SIDE_LENGTH / 2. + width_index as f32 * SPIRIT_SIDE_LENGTH - PAINT_BOARD_WIDTH / 2.,
-        SPIRIT_SIDE_LENGTH / 2. + height_index as f32 * SPIRIT_SIDE_LENGTH
+        total_pieces.get_side_length() / 2. + width_index as f32 * total_pieces.get_side_length()
+            - PAINT_BOARD_WIDTH / 2.,
+        total_pieces.get_side_length() / 2. + height_index as f32 * total_pieces.get_side_length()
             - PAINT_BOARD_HEIGHT / 2.,
         0.0,
     )

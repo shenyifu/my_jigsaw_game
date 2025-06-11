@@ -28,7 +28,6 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_systems(Startup, setup)
         .init_state::<GameState>()
-        .insert_resource(TotalPieces::P6)
         .add_plugins((config::config_plugin, play::play_plugin))
         .run();
 }

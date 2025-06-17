@@ -1,4 +1,7 @@
+mod board;
+
 use crate::config::total_pieces::TotalPieces;
+use crate::play::board::{Board, BoardStatus, draw_board_color, setup_board};
 use crate::{GameState, PAINT_BOARD_HEIGHT, PAINT_BOARD_WIDTH};
 use bevy::app::{App, Update};
 use bevy::asset::{AssetServer, Assets, RenderAssetUsages};
@@ -11,22 +14,6 @@ use bevy::window::PrimaryWindow;
 use image::{DynamicImage, GenericImageView};
 use rand::{Rng, thread_rng};
 use std::path::Path;
-
-const PAINT_BOARD_COLOR: Color = Color::srgb(255., 255., 255.);
-const PAINT_PRE_SELECT_COLOR: Color = Color::srgb(0., 255., 0.);
-
-#[derive(Component)]
-#[require(Transform)]
-struct CorrectPosition {
-    status: CorrectPositionStatus,
-    index: usize,
-}
-
-#[derive(PartialEq)]
-enum CorrectPositionStatus {
-    Init,
-    Used,
-}
 
 #[derive(Component)]
 #[require(Sprite, Transform)]
@@ -48,6 +35,8 @@ struct DeltaPosition(Transform);
 pub fn play_plugin(app: &mut App) {
     app.insert_resource(DeltaPosition(Transform::default()))
         .add_systems(OnEnter(GameState::Play), setup_game)
+        .add_systems(OnEnter(GameState::Play), setup_board)
+        .add_systems(Update, draw_board_color.run_if(in_state(GameState::Play)))
         .add_systems(Update, move_sprite.run_if(in_state(GameState::Play)))
         .add_systems(
             Update,
@@ -60,8 +49,6 @@ pub fn play_plugin(app: &mut App) {
 fn setup_game(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
     mut images: ResMut<Assets<Image>>,
     total_pieces: Res<TotalPieces>,
 ) {
@@ -94,19 +81,6 @@ fn setup_game(
             random_position(),
             sprite,
         ));
-
-        commands.spawn((
-            Mesh2d(meshes.add(Rectangle::new(
-                total_pieces.get_side_length(),
-                total_pieces.get_side_length(),
-            ))),
-            MeshMaterial2d(materials.add(PAINT_BOARD_COLOR)),
-            correct_position,
-            CorrectPosition {
-                status: CorrectPositionStatus::Init,
-                index,
-            },
-        ));
     }
 
     commands.spawn((
@@ -133,11 +107,7 @@ fn move_sprite(
     q_camera: Query<(&Camera, &GlobalTransform)>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut correct_positions: Query<
-        (
-            &mut CorrectPosition,
-            &Transform,
-            &mut MeshMaterial2d<ColorMaterial>,
-        ),
+        (&mut Board, &Transform, &mut MeshMaterial2d<ColorMaterial>),
         Without<Piece>,
     >,
     total_pieces: Res<TotalPieces>,
@@ -156,19 +126,18 @@ fn move_sprite(
                 current_position.translation.y = world_position.y + delta_position.0.translation.y;
                 // when close to correct position and not used, hint it
 
-                for (correct_position, correct_position_transform, mut color_material) in
+                for (mut correct_position, correct_position_transform, mut color_material) in
                     correct_positions.iter_mut()
                 {
                     if close_correct_position(
                         &current_position,
                         &correct_position_transform,
                         &total_pieces,
-                    ) && correct_position.status == CorrectPositionStatus::Init
+                    ) && correct_position.status == BoardStatus::Init
                     {
-                        materials.get_mut(color_material.id()).unwrap().color =
-                            PAINT_PRE_SELECT_COLOR;
+                        correct_position.status = BoardStatus::PreSelect;
                     } else {
-                        materials.get_mut(color_material.id()).unwrap().color = PAINT_BOARD_COLOR;
+                        correct_position.status = BoardStatus::Init;
                     }
                 }
             }
@@ -184,11 +153,7 @@ fn click_chose(
     q_camera: Query<(&Camera, &GlobalTransform)>,
     total_pieces: Res<TotalPieces>,
     mut correct_positions: Query<
-        (
-            &mut CorrectPosition,
-            &Transform,
-            &mut MeshMaterial2d<ColorMaterial>,
-        ),
+        (&mut Board, &Transform, &mut MeshMaterial2d<ColorMaterial>),
         Without<Piece>,
     >,
     mut materials: ResMut<Assets<ColorMaterial>>,
@@ -219,13 +184,12 @@ fn click_chose(
                     &current_position,
                     &correct_position_transform,
                     &total_pieces,
-                ) && correct_position.status == CorrectPositionStatus::Init
+                ) && correct_position.status == BoardStatus::Init
                 {
                     current_position.translation.x = correct_position_transform.translation.x;
                     current_position.translation.y = correct_position_transform.translation.y;
-                    correct_position.status = CorrectPositionStatus::Used;
+                    correct_position.status = BoardStatus::Used;
                     piece.used_correct_position = Some(correct_position.index);
-                    materials.get_mut(color_material.id()).unwrap().color = PAINT_BOARD_COLOR;
                 }
 
                 piece.move_status = MoveStatus::Init;
@@ -249,7 +213,7 @@ fn click_chose(
                     if piece.used_correct_position.is_some() {
                         for (mut correct_position, _, _) in correct_positions.iter_mut() {
                             if correct_position.index == piece.used_correct_position.unwrap() {
-                                correct_position.status = CorrectPositionStatus::Init;
+                                correct_position.status = BoardStatus::Init;
                                 break;
                             }
                         }

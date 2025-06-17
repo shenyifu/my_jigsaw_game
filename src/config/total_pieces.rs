@@ -29,7 +29,7 @@ impl TotalPieces {
         }
     }
 
-    fn get_value(&self) -> u8 {
+    pub fn get_value(&self) -> u8 {
         match self {
             TotalPieces::P6 => 6,
             TotalPieces::P24 => 24,

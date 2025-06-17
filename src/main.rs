@@ -8,6 +8,7 @@ use std::cmp::PartialEq;
 // 3 * 2
 const PAINT_BOARD_HEIGHT: f32 = 640.;
 const PAINT_BOARD_WIDTH: f32 = 960.;
+// todo get image from https://picsum.photos/id/1/1920/1280.jpg
 
 #[derive(States, Default, Clone, Eq, Debug, Hash, PartialEq)]
 enum GameState {

@@ -66,7 +66,7 @@ fn setup_game(
     total_pieces: Res<TotalPieces>,
 ) {
     let split_images = split_image(
-        "assets/resources/flower.png",
+        "assets/resources/1.jpg",
         total_pieces.get_width_count() as u32,
         total_pieces.get_height_count() as u32,
     )

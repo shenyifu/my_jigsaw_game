@@ -72,7 +72,7 @@ fn setup_config(mut commands: Commands) {
                 button_node.clone(),
                 PieceButton { total_piece },
                 BackgroundColor(BUTTON_DEFAULT_BACKGROUND),
-                children![Text::new(total_piece.to_string()), TextColor(TEXT_COLOR),],
+                children![(Text::new(total_piece.to_string()), TextColor(TEXT_COLOR),)],
                 OnConfigScreen,
             ))
             .observe(total_piece_button_click)

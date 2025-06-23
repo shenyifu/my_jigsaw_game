@@ -4,17 +4,12 @@ mod result;
 
 use crate::config::total_pieces::TotalPieces;
 use crate::play::board::{draw_board_color, setup_board};
-use crate::play::piece::{Piece, move_sprite, setup_piece};
+use crate::play::piece::{move_sprite, setup_piece};
 use crate::play::result::setup_result;
 use crate::{GameState, PAINT_BOARD_HEIGHT, PAINT_BOARD_WIDTH};
 use bevy::app::{App, Update};
-use bevy::asset::AssetServer;
-use bevy::color::Color;
-use bevy::ecs::relationship::{Relationship, RelationshipHookMode};
 use bevy::math::Vec2;
 use bevy::prelude::*;
-use bevy::time::common_conditions::on_timer;
-use std::time::Duration;
 
 #[derive(Component)]
 struct Moving(Vec2);

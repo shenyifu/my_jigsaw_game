@@ -1,26 +1,22 @@
 use crate::config::total_pieces::TotalPieces;
 use crate::play::board::Board;
 use crate::play::{
-    Above, CorrectIndex, MoveState, Moving, PreAbove, PreUnder, Success, Under,
+    Above, CorrectIndex, MoveState, Moving, PreAbove, Success, Under,
     get_correct_position,
 };
 use bevy::asset::{Assets, RenderAssetUsages};
-use bevy::ecs::relationship::Relationship;
-use bevy::ecs::system::lifetimeless::SCommands;
 use bevy::image::Image;
 use bevy::math::Vec2;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use image::{DynamicImage, GenericImageView};
 use rand::{Rng, thread_rng};
-use std::any::Any;
 use std::path::Path;
 
 #[derive(Component)]
 #[require(Sprite, Transform)]
 pub struct Piece {
     pub correct_index: CorrectIndex,
-    pub used_correct_position: Option<usize>,
 }
 
 pub fn setup_piece(
@@ -52,7 +48,6 @@ pub fn setup_piece(
             .spawn((
                 Piece {
                     correct_index: index,
-                    used_correct_position: None,
                 },
                 random_position(),
                 sprite,
@@ -103,8 +98,6 @@ fn chose_one_piece(
             next_state.set(MoveState::Move);
         }
         MoveState::Move => {
-            let piece = pieces.get(click.target).unwrap();
-
             commands.entity(click.target).remove::<Moving>();
             commands.trigger_targets(Unpick, click.target);
 
@@ -174,30 +167,36 @@ pub fn move_sprite(
     let (camera, camera_transform) = q_camera.single().unwrap();
     let window = q_window.single().unwrap();
 
-    if let Some(world_position) = window
+    let world_position = window
         .cursor_position()
         .map(|cursor| camera.viewport_to_world(camera_transform, cursor).unwrap())
-        .map(|ray| ray.origin.truncate())
-    {
-        for (mut current_position, moving, piece_entity) in pieces.iter_mut() {
-            current_position.translation.x = world_position.x + moving.0.x;
-            current_position.translation.y = world_position.y + moving.0.y;
-            for (board_transform, board_entity) in correct_positions.iter_mut() {
-                if close_correct_position(&current_position, board_transform, &total_pieces) {
-                    if pre_above.get(piece_entity).is_ok()
-                        && pre_above.get(piece_entity).unwrap().0 != board_entity
-                    {
-                        commands.entity(piece_entity).remove::<PreAbove>();
-                        commands.entity(piece_entity).insert(PreAbove(board_entity));
-                    } else {
-                        commands.entity(piece_entity).insert(PreAbove(board_entity));
-                    }
-                } else {
+        .map(|ray| ray.origin.truncate());
+
+    if world_position.is_none() {
+        return;
+    }
+
+    let world_position = world_position.unwrap();
+
+    for (mut current_position, moving, piece_entity) in pieces.iter_mut() {
+        current_position.translation.x = world_position.x + moving.0.x;
+        current_position.translation.y = world_position.y + moving.0.y;
+        for (board_transform, board_entity) in correct_positions.iter_mut() {
+            if close_correct_position(&current_position, board_transform, &total_pieces) {
+                if pre_above.get(piece_entity).is_ok()
+                    && pre_above.get(piece_entity).unwrap().0 != board_entity
+                {
                     commands.entity(piece_entity).remove::<PreAbove>();
+                    commands.entity(piece_entity).insert(PreAbove(board_entity));
+                } else {
+                    commands.entity(piece_entity).insert(PreAbove(board_entity));
                 }
+            } else {
+                commands.entity(piece_entity).remove::<PreAbove>();
             }
         }
     }
+
 }
 
 fn close_correct_position(
@@ -217,7 +216,7 @@ fn split_image<P: AsRef<Path>>(
     image_path: P,
     width_count: u32,
     height_count: u32,
-) -> bevy::prelude::Result<Vec<DynamicImage>, image::ImageError> {
+) -> Result<Vec<DynamicImage>, image::ImageError> {
     let img = image::open(image_path)?;
 
     let (width, height) = img.dimensions();

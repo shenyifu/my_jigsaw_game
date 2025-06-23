@@ -1,26 +1,15 @@
 use crate::config::total_pieces::TotalPieces;
-use crate::play::{Piece, get_correct_position};
+use crate::play::{CorrectIndex, PreUnder, get_correct_position};
 use bevy::asset::Assets;
 use bevy::color::Color;
-use bevy::prelude::{
-    ColorMaterial, Commands, Component, Mesh, Mesh2d, MeshMaterial2d, Query, Rectangle, Res,
-    ResMut, Without,
-};
+use bevy::prelude::*;
 
 const PAINT_BOARD_COLOR: Color = Color::srgb(255., 255., 255.);
 const PAINT_PRE_SELECT_COLOR: Color = Color::srgb(0., 255., 0.);
 
-#[derive(PartialEq)]
-pub enum BoardStatus {
-    Init,
-    PreSelect,
-    Used,
-}
-
 #[derive(Component)]
 pub struct Board {
-    pub(crate) status: BoardStatus,
-    pub(crate) index: usize,
+    pub(crate) index: CorrectIndex,
 }
 
 pub fn setup_board(
@@ -39,23 +28,21 @@ pub fn setup_board(
             ))),
             MeshMaterial2d(materials.add(PAINT_BOARD_COLOR)),
             correct_position,
-            Board {
-                status: BoardStatus::Init,
-                index,
-            },
+            Board { index },
         ));
     }
 }
 
 pub fn draw_board_color(
     mut materials: ResMut<Assets<ColorMaterial>>,
-    mut correct_positions: Query<(&Board, &MeshMaterial2d<ColorMaterial>), Without<Piece>>,
+    pre_under: Query<&PreUnder>,
+    mut correct_positions: Query<(&MeshMaterial2d<ColorMaterial>, Entity), With<Board>>,
 ) {
-    for (board, mesh_material) in correct_positions.iter_mut() {
-        materials.get_mut(mesh_material.id()).unwrap().color = match board.status {
-            BoardStatus::Used => PAINT_BOARD_COLOR,
-            BoardStatus::Init => PAINT_BOARD_COLOR,
-            BoardStatus::PreSelect => PAINT_PRE_SELECT_COLOR,
+    for (mesh_material, entity) in correct_positions.iter_mut() {
+        materials.get_mut(mesh_material.id()).unwrap().color = if pre_under.get(entity).is_ok() {
+            PAINT_PRE_SELECT_COLOR
+        } else {
+            PAINT_BOARD_COLOR
         }
     }
 }

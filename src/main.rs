@@ -2,7 +2,6 @@ mod config;
 mod play;
 
 use bevy::prelude::*;
-use config::total_pieces::TotalPieces;
 use std::cmp::PartialEq;
 
 // 3 * 2

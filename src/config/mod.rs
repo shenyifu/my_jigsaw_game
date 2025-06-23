@@ -107,9 +107,8 @@ fn render_piece_color(
     total_pieces: Res<TotalPieces>,
     query: Query<(&PieceButton, &mut BackgroundColor)>,
 ) {
-    let total_pieces = total_pieces.clone();
     for (piece_button, mut background) in query {
-        if piece_button.total_piece == total_pieces {
+        if piece_button.total_piece == *total_pieces {
             *background = BackgroundColor(BUTTON_SELECTED_BACKGROUND)
         } else {
             *background = BackgroundColor(BUTTON_DEFAULT_BACKGROUND)

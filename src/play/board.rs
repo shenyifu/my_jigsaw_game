@@ -1,5 +1,5 @@
 use crate::config::total_pieces::TotalPieces;
-use crate::play::{CorrectIndex, PreUnder, get_correct_position};
+use crate::play::{CorrectIndex, OnPlayScreen, PreUnder, get_correct_position};
 use bevy::asset::Assets;
 use bevy::color::Color;
 use bevy::prelude::*;
@@ -29,6 +29,7 @@ pub fn setup_board(
             MeshMaterial2d(materials.add(PAINT_BOARD_COLOR)),
             correct_position,
             Board { index },
+            OnPlayScreen,
         ));
     }
 }

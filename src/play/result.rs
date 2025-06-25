@@ -1,4 +1,5 @@
-use crate::play::Success;
+use crate::GameState;
+use crate::play::{OnPlayScreen, Success};
 use bevy::asset::AssetServer;
 use bevy::color::Color;
 use bevy::prelude::*;
@@ -21,6 +22,7 @@ pub fn setup_result(mut commands: Commands, asset_server: Res<AssetServer>) {
             ..default()
         },
         Result,
+        OnPlayScreen,
     ));
     commands.add_observer(update_status);
 }
@@ -28,9 +30,12 @@ pub fn setup_result(mut commands: Commands, asset_server: Res<AssetServer>) {
 fn update_status(
     _: Trigger<Success>,
     mut result: Query<(&mut Text, &mut TextColor), With<Result>>,
+    mut state: ResMut<NextState<GameState>>,
 ) {
     for (mut text, mut color) in result.iter_mut() {
         color.0 = Color::srgb(0., 255., 0.);
         *text = Text::new("Well Done!");
     }
+
+    state.set(GameState::Success);
 }

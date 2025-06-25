@@ -6,7 +6,7 @@ use crate::config::total_pieces::TotalPieces;
 use crate::play::board::{draw_board_color, setup_board};
 use crate::play::piece::{move_sprite, setup_piece};
 use crate::play::result::setup_result;
-use crate::{GameState, PAINT_BOARD_HEIGHT, PAINT_BOARD_WIDTH};
+use crate::{GameState, PAINT_BOARD_HEIGHT, PAINT_BOARD_WIDTH, despawn_screen};
 use bevy::app::{App, Update};
 use bevy::math::Vec2;
 use bevy::prelude::*;
@@ -40,13 +40,17 @@ struct PreAbove(Entity);
 struct PreUnder(Entity);
 
 #[derive(Event)]
-struct Success;
+pub struct Success;
+
+#[derive(Component)]
+struct OnPlayScreen;
 
 pub fn play_plugin(app: &mut App) {
     app.init_state::<MoveState>()
         .add_systems(OnEnter(GameState::Play), setup_board)
         .add_systems(OnEnter(GameState::Play), setup_piece)
         .add_systems(OnEnter(GameState::Play), setup_result)
+        .add_systems(OnExit(GameState::Play), despawn_screen::<OnPlayScreen>)
         .add_systems(Update, draw_board_color.run_if(in_state(GameState::Play)))
         .add_systems(Update, move_sprite.run_if(in_state(MoveState::Move)));
 }

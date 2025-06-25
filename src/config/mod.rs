@@ -1,14 +1,14 @@
+use crate::config::level::Levels;
 use crate::config::total_pieces::TotalPieces;
-use crate::{GameState, despawn_screen};
+use crate::{
+    BUTTON_DEFAULT_BACKGROUND, BUTTON_SELECTED_BACKGROUND, GameState, TEXT_COLOR, despawn_screen,
+};
 use bevy::prelude::*;
 use strum::IntoEnumIterator;
 
+pub(crate) mod level;
 pub mod total_pieces;
 
-const BUTTON_DEFAULT_BACKGROUND: Color = Color::srgb(255., 255., 255.);
-const BUTTON_SELECTED_BACKGROUND: Color = Color::srgb(0., 255., 0.);
-
-const TEXT_COLOR: Color = Color::srgb(0., 0., 0.);
 pub fn config_plugin(app: &mut App) {
     app.add_systems(OnEnter(GameState::Config), setup_config)
         .add_systems(OnExit(GameState::Config), despawn_screen::<OnConfigScreen>)
@@ -90,6 +90,7 @@ fn setup_config(mut commands: Commands) {
         .observe(start_game)
         .id();
     commands.entity(parent).add_child(start_game);
+    commands.insert_resource(Levels::default())
 }
 
 fn total_piece_button_click(

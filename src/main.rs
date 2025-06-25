@@ -1,8 +1,14 @@
 mod config;
 mod play;
+mod success;
 
 use bevy::prelude::*;
 use std::cmp::PartialEq;
+
+const BUTTON_DEFAULT_BACKGROUND: Color = Color::srgb(255., 255., 255.);
+const BUTTON_SELECTED_BACKGROUND: Color = Color::srgb(0., 255., 0.);
+
+const TEXT_COLOR: Color = Color::srgb(0., 0., 0.);
 
 // 3 * 2
 const PAINT_BOARD_HEIGHT: f32 = 640.;
@@ -28,7 +34,11 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_systems(Startup, setup)
         .init_state::<GameState>()
-        .add_plugins((config::config_plugin, play::play_plugin))
+        .add_plugins((
+            config::config_plugin,
+            play::play_plugin,
+            success::success_plugin,
+        ))
         .run();
 }
 

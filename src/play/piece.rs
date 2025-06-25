@@ -1,7 +1,8 @@
+use crate::config::level::Levels;
 use crate::config::total_pieces::TotalPieces;
 use crate::play::board::Board;
 use crate::play::{
-    Above, CorrectIndex, MoveState, Moving, PreAbove, Success, Under,
+    Above, CorrectIndex, MoveState, Moving, OnPlayScreen, PreAbove, Success, Under,
     get_correct_position,
 };
 use bevy::asset::{Assets, RenderAssetUsages};
@@ -23,9 +24,10 @@ pub fn setup_piece(
     mut commands: Commands,
     mut images: ResMut<Assets<Image>>,
     total_pieces: Res<TotalPieces>,
+    level: Res<Levels>,
 ) {
     let split_images = split_image(
-        "assets/resources/1.jpg",
+        level.current_level().get_path(),
         total_pieces.get_width_count() as u32,
         total_pieces.get_height_count() as u32,
     )
@@ -52,6 +54,7 @@ pub fn setup_piece(
                 random_position(),
                 sprite,
                 Pickable::default(),
+                OnPlayScreen,
             ))
             .observe(chose_one_piece)
             .observe(piece_picked)
@@ -196,7 +199,6 @@ pub fn move_sprite(
             }
         }
     }
-
 }
 
 fn close_correct_position(

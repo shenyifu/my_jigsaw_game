@@ -43,4 +43,8 @@ impl Levels {
         self.current += 1;
         self.current %= TOTAL_LEVEL;
     }
+
+    pub fn random_level(&mut self) {
+        self.current = rand::random::<usize>() % TOTAL_LEVEL;
+    }
 }

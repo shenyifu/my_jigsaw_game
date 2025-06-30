@@ -1,17 +1,27 @@
 use crate::config::level::Levels;
 use crate::{BUTTON_DEFAULT_BACKGROUND, GameState, TEXT_COLOR, despawn_screen};
 use bevy::app::App;
+use bevy::asset::RenderAssetUsages;
+use bevy::color::palettes::css::{BLUE, RED, WHITE};
 use bevy::prelude::*;
+use bevy::prelude::Display::Block;
+use bevy::ui::Display::Flex;
+use bevy::ui::JustifyContent::Start;
+use bevy::ui::Val::Percent;
 
 pub fn success_plugin(app: &mut App) {
     app.add_systems(OnEnter(GameState::Success), setup_success);
-    app.add_systems(OnExit(GameState::Success),despawn_screen::<OnSuccessScreen>);
+    app.insert_resource(Levels::default());
+    app.add_systems(
+        OnExit(GameState::Success),
+        despawn_screen::<OnSuccessScreen>,
+    );
 }
 
 #[derive(Component)]
 struct OnSuccessScreen;
 
-fn setup_success(mut commands: Commands) {
+fn setup_success(mut commands: Commands, mut images: ResMut<Assets<Image>>, level: Res<Levels>) {
     let button_node = Node {
         width: Val::Px(300.0),
         height: Val::Px(65.0),
@@ -24,20 +34,39 @@ fn setup_success(mut commands: Commands) {
     let parent = commands
         .spawn((
             Node {
+                width: Percent(100.),
+                height: Percent(100.),
+                display: Flex,
                 flex_direction: FlexDirection::Row,
-                align_items: AlignItems::Center,
                 ..default()
             },
             OnSuccessScreen,
         ))
         .id();
 
+    let image_path = level.current_level().get_path();
+    let dyn_image = image::open(image_path).unwrap();
+    let image = images.add(Image::from_dynamic(
+        dyn_image,
+        true,
+        RenderAssetUsages::RENDER_WORLD,
+    ));
+
     let left_image = commands
         .spawn((
             Node {
-                flex_direction: FlexDirection::Row,
-                align_items: AlignItems::Center,
+                width: Percent(70.),
+                height: Percent(100.),
                 ..default()
+            },
+            ImageNode{
+                color: Default::default(),
+                image: image,
+                texture_atlas: None,
+                flip_x: false,
+                flip_y: false,
+                rect: None,
+                image_mode: Default::default(),
             },
             OnSuccessScreen,
         ))
@@ -46,8 +75,10 @@ fn setup_success(mut commands: Commands) {
     let right_part = commands
         .spawn((
             Node {
+                width: Percent(20.),
+                height: Percent(100.),
+                display: Flex,
                 flex_direction: FlexDirection::Column,
-                align_items: AlignItems::Center,
                 ..default()
             },
             OnSuccessScreen,

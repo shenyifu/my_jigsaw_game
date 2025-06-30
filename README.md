@@ -4,13 +4,13 @@
 
 1. picture split
 2. random initial position of picture
-3. show `Well Done` when finish
+3. show `play again page` when finish
 
 ## preview
 
-[My Jigsaw Game](https://github.com/user-attachments/assets/9c7ae04a-b0bf-4d7c-bc69-6ed4fc0e1d0e)
+[jigsaw.webm](https://github.com/user-attachments/assets/4f339b19-375b-4bfb-b547-1327ce0ddfa5)
+
 
 ## todo
 
 1. better config button style
-2. chose media on config

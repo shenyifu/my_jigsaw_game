@@ -2,12 +2,9 @@ use crate::config::level::Levels;
 use crate::{BUTTON_DEFAULT_BACKGROUND, GameState, TEXT_COLOR, despawn_screen};
 use bevy::app::App;
 use bevy::asset::RenderAssetUsages;
-use bevy::color::palettes::css::{BLUE, RED, WHITE};
 use bevy::prelude::*;
-use bevy::prelude::Display::Block;
 use bevy::ui::Display::Flex;
-use bevy::ui::JustifyContent::Start;
-use bevy::ui::Val::Percent;
+use bevy::ui::Val::{ Percent, Vw};
 
 pub fn success_plugin(app: &mut App) {
     app.add_systems(OnEnter(GameState::Success), setup_success);
@@ -38,6 +35,8 @@ fn setup_success(mut commands: Commands, mut images: ResMut<Assets<Image>>, leve
                 height: Percent(100.),
                 display: Flex,
                 flex_direction: FlexDirection::Row,
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
                 ..default()
             },
             OnSuccessScreen,
@@ -55,8 +54,8 @@ fn setup_success(mut commands: Commands, mut images: ResMut<Assets<Image>>, leve
     let left_image = commands
         .spawn((
             Node {
-                width: Percent(70.),
-                height: Percent(100.),
+                width: Vw(69.),
+                height: Vw(46.),
                 ..default()
             },
             ImageNode{
@@ -79,6 +78,7 @@ fn setup_success(mut commands: Commands, mut images: ResMut<Assets<Image>>, leve
                 height: Percent(100.),
                 display: Flex,
                 flex_direction: FlexDirection::Column,
+                justify_content: JustifyContent::Center,
                 ..default()
             },
             OnSuccessScreen,

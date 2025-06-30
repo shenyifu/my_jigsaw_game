@@ -31,7 +31,13 @@ fn despawn_screen<T: Component>(to_despawn: Query<Entity, With<T>>, mut commands
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins)
+        .add_plugins(DefaultPlugins.set(WindowPlugin {
+            primary_window: Some(Window {
+                title: "Jigsaw".to_string(),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }))
         .add_systems(Startup, setup)
         .init_state::<GameState>()
         .add_plugins((

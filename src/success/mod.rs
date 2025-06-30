@@ -60,7 +60,7 @@ fn setup_success(mut commands: Commands, mut images: ResMut<Assets<Image>>, leve
             },
             ImageNode{
                 color: Default::default(),
-                image: image,
+                image,
                 texture_atlas: None,
                 flip_x: false,
                 flip_y: false,

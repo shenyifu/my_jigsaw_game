@@ -74,10 +74,11 @@ struct PieceMatch;
 
 fn chose_one_piece(
     click: Trigger<Pointer<Click>>,
-    pieces: Query<(&Piece, &Transform)>,
+    pieces: Query<(&Piece, &Transform), Without<Moving>>,
     mut commands: Commands,
     state: Res<State<MoveState>>,
     mut next_state: ResMut<NextState<MoveState>>,
+    picked: Query<Entity, With<Moving>>,
     q_camera: Query<(&Camera, &GlobalTransform)>,
 ) {
     let (camera, camera_transform) = q_camera.single().unwrap();
@@ -101,8 +102,10 @@ fn chose_one_piece(
             next_state.set(MoveState::Move);
         }
         MoveState::Move => {
-            commands.entity(click.target).remove::<Moving>();
-            commands.trigger_targets(Unpick, click.target);
+            for piece in picked {
+                commands.entity(piece).remove::<Moving>();
+                commands.trigger_targets(Unpick, piece);
+            }
 
             next_state.set(MoveState::Init);
         }

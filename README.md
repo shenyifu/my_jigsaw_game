@@ -1,10 +1,11 @@
 # My Jigsaw Game
 
-## Feature
+## Manual
 
-1. picture split
-2. random initial position of picture
-3. show `play again page` when finish
+1. click to pick piece
+2. move piece to board, when close to placeholder, placeholder show different color
+3. click to release piece
+4. if all piece correct, show success page
 
 ## preview
 

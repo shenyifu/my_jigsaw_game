@@ -6,6 +6,7 @@ use crate::play::{
     get_correct_position,
 };
 use bevy::asset::{Assets, RenderAssetUsages};
+use bevy::ecs::observer::TriggerTargets;
 use bevy::image::Image;
 use bevy::math::Vec2;
 use bevy::prelude::*;
@@ -64,7 +65,7 @@ pub fn setup_piece(
 }
 
 #[derive(Event)]
-struct Pick;
+struct Pick(bool, Vec2);
 
 #[derive(Event)]
 struct Unpick;
@@ -93,11 +94,7 @@ fn chose_one_piece(
                     .origin
                     .truncate();
 
-                commands.entity(click.target).insert(Moving(Vec2::new(
-                    transform.translation.x - world_position.x,
-                    transform.translation.y - world_position.y,
-                )));
-                commands.trigger_targets(Pick, click.target)
+                commands.trigger_targets(Pick(true, world_position), click.target)
             }
             next_state.set(MoveState::Move);
         }
@@ -112,11 +109,62 @@ fn chose_one_piece(
     }
 }
 
-fn piece_picked(pick: Trigger<Pick>, above: Query<&Above>, mut commands: Commands) {
-    if let Ok(above) = above.get(pick.target()) {
-        commands.entity(pick.target()).remove::<Above>();
-        commands.entity(pick.target()).insert(PreAbove(above.0));
+fn piece_picked(
+    pick: Trigger<Pick>,
+    above: Query<&Above>,
+    mut commands: Commands,
+    pieces: Query<&Transform, (With<Piece>, Without<Moving>)>,
+    boards: Query<(Entity, &Board)>,
+    unders: Query<&Under>,
+    total_pieces: Res<TotalPieces>,
+) {
+    let piece_transform = pieces.get(pick.target());
+    if piece_transform.is_err() {
+        return;
     }
+    let piece_transform = piece_transform.unwrap();
+
+    commands.entity(pick.target()).insert(Moving(Vec2::new(
+        piece_transform.translation.x - pick.1.x,
+        piece_transform.translation.y - pick.1.y,
+    )));
+
+    let above = above.get(pick.target());
+    if above.is_err() {
+        return;
+    }
+
+    let above = above.unwrap();
+
+    if pick.0 {
+        // pick around
+        let board = above.0;
+        let board = boards.get(board).unwrap();
+
+        let mut around_index = vec![
+            board.1.index + 1,
+            board.1.index + total_pieces.get_columns() as usize,
+        ];
+        if board.1.index >= 1 {
+            around_index.push(board.1.index - 1);
+        }
+        if board.1.index >= total_pieces.get_columns() as usize {
+            around_index.push(board.1.index - total_pieces.get_columns() as usize)
+        }
+
+        for index in around_index.into_iter() {
+            for board in boards {
+                if board.1.index == index {
+                    if let Ok(under) = unders.get(board.0) {
+                        commands.trigger_targets(Pick(true, pick.1), under.0)
+                    }
+                    break;
+                }
+            }
+        }
+    }
+    commands.entity(pick.target()).remove::<Above>();
+    commands.entity(pick.target()).insert(PreAbove(above.0));
 }
 
 fn piece_unpicked(

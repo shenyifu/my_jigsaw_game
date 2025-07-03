@@ -4,7 +4,7 @@ use bevy::app::App;
 use bevy::asset::RenderAssetUsages;
 use bevy::prelude::*;
 use bevy::ui::Display::Flex;
-use bevy::ui::Val::{ Percent, Vw};
+use bevy::ui::Val::{Percent, Vw};
 
 pub fn success_plugin(app: &mut App) {
     app.add_systems(OnEnter(GameState::Success), setup_success);
@@ -58,7 +58,7 @@ fn setup_success(mut commands: Commands, mut images: ResMut<Assets<Image>>, leve
                 height: Vw(46.),
                 ..default()
             },
-            ImageNode{
+            ImageNode {
                 color: Default::default(),
                 image,
                 texture_atlas: None,

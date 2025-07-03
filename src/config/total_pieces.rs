@@ -29,6 +29,14 @@ impl TotalPieces {
         }
     }
 
+    pub fn get_rows(&self) -> u8 {
+        self.get_factor() * 2
+    }
+
+    pub fn get_columns(&self) -> u8 {
+        self.get_factor() * 3
+    }
+
     pub fn get_value(&self) -> u8 {
         match self {
             TotalPieces::P6 => 6,

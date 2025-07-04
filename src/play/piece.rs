@@ -12,6 +12,7 @@ use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use image::{DynamicImage, GenericImageView};
 use rand::{Rng, thread_rng};
+use std::mem::forget;
 use std::path::Path;
 
 #[derive(Component)]
@@ -247,8 +248,8 @@ pub fn move_sprite(
     mut commands: Commands,
     q_window: Query<&Window, With<PrimaryWindow>>,
     q_camera: Query<(&Camera, &GlobalTransform)>,
-    mut correct_positions: Query<(&Transform, Entity), (With<Board>, Without<Under>)>,
-    pre_above: Query<&PreAbove>,
+    mut boards_not_under_others: Query<(&Transform, Entity), (With<Board>, Without<Under>)>,
+    pre_above: Query<Entity, (With<PreAbove>)>,
     total_pieces: Res<TotalPieces>,
 ) {
     let (camera, camera_transform) = q_camera.single().unwrap();
@@ -265,21 +266,17 @@ pub fn move_sprite(
 
     let world_position = world_position.unwrap();
 
+    // remove all pre above relation
+    for piece_entity in pre_above.iter() {
+        commands.entity(piece_entity).remove::<PreAbove>();
+    }
+
     for (mut current_position, moving, piece_entity) in pieces.iter_mut() {
         current_position.translation.x = world_position.x + moving.0.x;
         current_position.translation.y = world_position.y + moving.0.y;
-        for (board_transform, board_entity) in correct_positions.iter_mut() {
+        for (board_transform, board_entity) in boards_not_under_others.iter_mut() {
             if close_correct_position(&current_position, board_transform, &total_pieces) {
-                if pre_above.get(piece_entity).is_ok()
-                    && pre_above.get(piece_entity).unwrap().0 != board_entity
-                {
-                    commands.entity(piece_entity).remove::<PreAbove>();
-                    commands.entity(piece_entity).insert(PreAbove(board_entity));
-                } else {
-                    commands.entity(piece_entity).insert(PreAbove(board_entity));
-                }
-            } else {
-                commands.entity(piece_entity).remove::<PreAbove>();
+                commands.entity(piece_entity).insert(PreAbove(board_entity));
             }
         }
     }

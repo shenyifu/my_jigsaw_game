@@ -75,7 +75,7 @@ struct PieceMatch;
 
 fn chose_pieces(
     click: Trigger<Pointer<Click>>,
-    pieces: Query<(&Piece, &Transform), Without<Moving>>,
+    pieces: Query<&Piece, Without<Moving>>,
     mut commands: Commands,
     state: Res<State<MoveState>>,
     mut next_state: ResMut<NextState<MoveState>>,
@@ -85,13 +85,12 @@ fn chose_pieces(
     if click.button != PointerButton::Primary {
         return;
     }
-    
+
     let (camera, camera_transform) = q_camera.single().unwrap();
 
     match state.get() {
         MoveState::Init => {
-            let piece = pieces.get(click.target);
-            if let Ok((_, transform)) = piece {
+            if pieces.get(click.target).is_ok() {
                 let world_position = camera
                     .viewport_to_world(camera_transform, click.pointer_location.position)
                     .unwrap()
@@ -115,13 +114,12 @@ fn chose_pieces(
 
 fn chose_one_piece(
     click: Trigger<Pointer<Click>>,
-    pieces: Query<(&Piece, &Transform), Without<Moving>>,
+    pieces: Query<&Piece, Without<Moving>>,
     mut commands: Commands,
     state: Res<State<MoveState>>,
     mut next_state: ResMut<NextState<MoveState>>,
     q_camera: Query<(&Camera, &GlobalTransform)>,
 ) {
-
     if click.button != PointerButton::Secondary {
         return;
     }
@@ -129,8 +127,7 @@ fn chose_one_piece(
 
     match state.get() {
         MoveState::Init => {
-            let piece = pieces.get(click.target);
-            if let Ok((_, transform)) = piece {
+            if pieces.get(click.target).is_ok() {
                 let world_position = camera
                     .viewport_to_world(camera_transform, click.pointer_location.position)
                     .unwrap()
@@ -141,8 +138,7 @@ fn chose_one_piece(
             }
             next_state.set(MoveState::Move);
         }
-        MoveState::Move => {
-        }
+        MoveState::Move => {}
     }
 }
 

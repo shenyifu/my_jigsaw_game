@@ -29,10 +29,6 @@ impl TotalPieces {
         }
     }
 
-    pub fn get_rows(&self) -> u8 {
-        self.get_factor() * 2
-    }
-
     pub fn get_columns(&self) -> u8 {
         self.get_factor() * 3
     }

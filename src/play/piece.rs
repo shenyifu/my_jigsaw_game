@@ -6,7 +6,6 @@ use crate::play::{
     get_correct_position,
 };
 use bevy::asset::{Assets, RenderAssetUsages};
-use bevy::ecs::observer::TriggerTargets;
 use bevy::image::Image;
 use bevy::math::Vec2;
 use bevy::prelude::*;
@@ -58,6 +57,7 @@ pub fn setup_piece(
                 OnPlayScreen,
             ))
             .observe(chose_one_piece)
+            .observe(chose_pieces)
             .observe(piece_picked)
             .observe(piece_unpicked);
     }
@@ -73,7 +73,7 @@ struct Unpick;
 #[derive(Event)]
 struct PieceMatch;
 
-fn chose_one_piece(
+fn chose_pieces(
     click: Trigger<Pointer<Click>>,
     pieces: Query<(&Piece, &Transform), Without<Moving>>,
     mut commands: Commands,
@@ -82,6 +82,10 @@ fn chose_one_piece(
     picked: Query<Entity, With<Moving>>,
     q_camera: Query<(&Camera, &GlobalTransform)>,
 ) {
+    if click.button != PointerButton::Primary {
+        return;
+    }
+    
     let (camera, camera_transform) = q_camera.single().unwrap();
 
     match state.get() {
@@ -105,6 +109,39 @@ fn chose_one_piece(
             }
 
             next_state.set(MoveState::Init);
+        }
+    }
+}
+
+fn chose_one_piece(
+    click: Trigger<Pointer<Click>>,
+    pieces: Query<(&Piece, &Transform), Without<Moving>>,
+    mut commands: Commands,
+    state: Res<State<MoveState>>,
+    mut next_state: ResMut<NextState<MoveState>>,
+    q_camera: Query<(&Camera, &GlobalTransform)>,
+) {
+
+    if click.button != PointerButton::Secondary {
+        return;
+    }
+    let (camera, camera_transform) = q_camera.single().unwrap();
+
+    match state.get() {
+        MoveState::Init => {
+            let piece = pieces.get(click.target);
+            if let Ok((_, transform)) = piece {
+                let world_position = camera
+                    .viewport_to_world(camera_transform, click.pointer_location.position)
+                    .unwrap()
+                    .origin
+                    .truncate();
+
+                commands.trigger_targets(Pick(false, world_position), click.target)
+            }
+            next_state.set(MoveState::Move);
+        }
+        MoveState::Move => {
         }
     }
 }
